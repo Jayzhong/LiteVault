@@ -1,10 +1,8 @@
-# PDD_LiteVault_V1.zh-CN.md
-
 ---
-title: "轻藏（LiteVault）V1 产品设计书"
-version: "1.0"
-status: "Draft"
-last_updated: "2025-12-26"
+- title: "轻藏（LiteVault）V1 产品设计书"
+- version: "1.0"
+- status: "Draft"
+- last_updated: "2025-12-26"
 ---
 
 ## 目录

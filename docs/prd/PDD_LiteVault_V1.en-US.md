@@ -1,10 +1,8 @@
-# PDD_LiteVault_V1.en-US.md
-
 ---
-title: "LiteVault V1 Product Design Doc"
-version: "1.0"
-status: "Draft"
-last_updated: "2025-12-26"
+- title: "LiteVault V1 Product Design Doc"
+- version: "1.0"
+- status: "Draft"
+- last_updated: "2025-12-26"
 ---
 
 ## Table of Contents
