@@ -1,0 +1,17 @@
+# General
+.DS_Store
+.idea/
+.vscode/
+*.log
+tmp/
+dist/
+build/
+node_modules/
+__pycache__/
+.env
+.venv/
+coverage/
+
+# Design
+design/prototypes/*.rp
+design/prototypes/*.fig
