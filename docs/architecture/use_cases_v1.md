@@ -458,22 +458,106 @@ class PaginationDto:
 
 ## 4. Search Module
 
-### 4.1 SearchVault
+### 4.1 SearchLibrary (V1)
+
+**Endpoint:** `GET /search`
+
+**Use Case:** `SearchLibraryUseCase`
+
+Performs lexical search on archived items. Supports two modes based on query prefix.
+
+#### Input DTO
+
+```python
+@dataclass
+class SearchLibraryInput:
+    user_id: str                    # From auth context
+    query: str                      # Required, non-empty after trim
+    cursor: str | None              # Pagination cursor
+    limit: int                      # Default 20, max 100
+```
+
+#### Output DTO
+
+```python
+@dataclass
+class SearchLibraryOutput:
+    items: list[SearchResultItemDto]
+    mode: str                       # 'tag_only' or 'combined'
+    pagination: PaginationDto
+    total: int
+```
+
+```python
+@dataclass
+class SearchResultItemDto:
+    id: str
+    title: str | None
+    summary: str | None
+    tags: list[str]
+    source_type: str | None         # 'NOTE' or 'ARTICLE'
+    confirmed_at: datetime
+```
+
+#### Validations
+
+| Validation | Error Code | HTTP |
+|------------|------------|------|
+| User not authenticated | `UNAUTHORIZED` | 401 |
+| Query is empty after trim | `VALIDATION_ERROR` | 400 |
+| Invalid cursor format | `INVALID_CURSOR` | 400 |
+| Limit > 100 | `VALIDATION_ERROR` | 400 |
+
+#### Flow
+
+```
+1. Check authentication
+2. Validate query non-empty after trim
+3. Parse query mode:
+   - If query.startswith("#"): mode = "tag_only", search_term = query[1:].strip()
+   - Else: mode = "combined", search_term = query.strip()
+4. Build query:
+   - WHERE user_id = :user_id AND status = 'ARCHIVED'
+   - If mode == "tag_only":
+       AND id IN (SELECT item_id FROM item_tags WHERE tag_id IN (
+           SELECT id FROM tags WHERE name_lower ILIKE '%search_term%' AND user_id = :user_id
+       ))
+   - If mode == "combined":
+       AND (
+           title ILIKE '%search_term%' 
+           OR summary ILIKE '%search_term%' 
+           OR raw_text ILIKE '%search_term%'
+           OR id IN (SELECT item_id FROM item_tags WHERE tag_id IN (
+               SELECT id FROM tags WHERE name_lower ILIKE '%search_term%' AND user_id = :user_id
+           ))
+       )
+   - Cursor: AND (confirmed_at, id) < (:cursor_confirmed_at, :cursor_id)
+5. ORDER BY confirmed_at DESC, id DESC
+6. LIMIT :limit + 1 (for hasMore detection)
+7. Return results with mode indicator and pagination
+```
+
+---
+
+### 4.2 SearchVault (V2 — Not Implemented)
 
 **Endpoint:** `POST /search`
 
-**Use Case:** `SearchVaultUseCase`
+**Status:** Not implemented. Reserved for future semantic search with LLM answer synthesis.
 
-#### Input DTO
+**Use Case:** `SearchVaultUseCase` (future)
+
+#### Input DTO (Future)
 
 ```python
 @dataclass
 class SearchVaultInput:
     user_id: str                    # From auth context
     query: str                      # Required, non-empty
+    mode: str                       # 'semantic' (future)
 ```
 
-#### Output DTO
+#### Output DTO (Future)
 
 ```python
 @dataclass
@@ -483,33 +567,16 @@ class SearchVaultOutput:
     total_sources: int
 ```
 
-```python
-@dataclass
-class EvidenceDto:
-    item_id: str
-    title: str
-    snippet: str
-    score: float
-    type: str                       # 'NOTE' or 'ARTICLE'
-    tags: list[str]
-```
-
-#### Validations
-
-| Validation | Error Code | HTTP |
-|------------|------------|------|
-| User not authenticated | `UNAUTHORIZED` | 401 |
-| Query is empty | `VALIDATION_ERROR` | 400 |
-| AI service unavailable | `AI_SERVICE_UNAVAILABLE` | 503 |
-
-#### Flow
+#### Flow (Future)
 
 ```
 1. Check authentication
 2. Validate query non-empty
-3. Fetch user's archived items (context for AI)
-4. Call AI provider with query + context
-5. Return synthesized answer + evidence
+3. Generate query embedding
+4. Perform vector similarity search
+5. Fetch relevant items as context
+6. Call LLM with query + context
+7. Return synthesized answer + evidence
 ```
 
 ---

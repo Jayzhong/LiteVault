@@ -92,6 +92,27 @@ export interface TagsListResponse {
     total: number;
 }
 
+// Search V1 API types
+export interface SearchResultItem {
+    id: string;
+    title: string | null;
+    summary: string | null;
+    tags: string[];
+    sourceType: string | null;
+    confirmedAt: string | null;
+    createdAt: string;
+}
+
+export interface SearchResponse {
+    items: SearchResultItem[];
+    mode: 'tag_only' | 'combined';
+    pagination: {
+        cursor: string | null;
+        hasMore: boolean;
+    };
+    total: number | null;
+}
+
 // Helper to convert API dates to Date objects
 function parseApiItem(item: CreateItemResponse): Item {
     return {
@@ -313,6 +334,20 @@ class ApiClient {
         await this.fetch<void>(`/api/v1/tags/${id}`, {
             method: 'DELETE',
         });
+    }
+
+    /**
+     * Search library items (GET /search)
+     * V1 lexical search with two modes:
+     * - Tag-only: query starts with '#' -> matches tags only
+     * - Combined: otherwise -> matches text OR tags
+     */
+    async search(query: string, cursor?: string, limit: number = 20): Promise<SearchResponse> {
+        const params = new URLSearchParams();
+        params.set('q', query);
+        if (cursor) params.set('cursor', cursor);
+        params.set('limit', limit.toString());
+        return this.fetch<SearchResponse>(`/api/v1/search?${params.toString()}`);
     }
 }
 

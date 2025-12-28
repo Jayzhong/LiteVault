@@ -92,40 +92,49 @@ Use these strings verbatim unless a deliberate product change is made.
 ---
 
 ## Search (`/search`)
+
 ### Empty State (simple hero variant)
 - search.empty.greeting: "Good Morning, {name}."
 - search.empty.subtitle: "What are you looking for today?"
 - search.empty.placeholder: "Search your vault..."
 - search.empty.action: "Search"
 
-### Results Page
+### Query Bar (V1)
 - search.title: "Search"
-- search.query.placeholder: "Ask anything about your vault..."
-- search.action.ask: "Ask →"
+- search.query.placeholder: "Search your vault..."
+- search.query.hint: "Use #tag to search tags only"
+- search.action.search: "Search"
 
-### Sections
-- search.section.answer: "✨ Synthesized Answer"
-- search.section.evidence: "Evidence"
-- search.badge.sources: "{n} sources"
-
-### Feedback
-- search.feedback.helpful: "Helpful"
-- search.feedback.not_helpful: "Not helpful"
+### Mode Indicators (V1)
+- search.mode.tag_only: "Showing tag matches"
+- search.mode.combined: "Showing all matches"
 
 ### Loading / Empty / Error
-- search.loading.answer: "Thinking…"
+- search.loading: "Searching..."
 - search.empty_results.title: "No matches found"
-- search.empty_results.copy: "Try a different question or save more notes to your vault."
-- search.empty_results.action: "Go to Home"
+- search.empty_results.copy_tag: "No items have matching tags."
+- search.empty_results.copy_combined: "Try a different search or save more notes to your vault."
+- search.empty_results.action_clear: "Clear search"
+- search.empty_results.action_home: "Go to Home"
 - search.error.title: "Search failed."
 - search.error.copy: "Please try again."
 - search.error.action: "Retry"
 
+### V2 Deferred (Semantic Search — Not Implemented)
+> The following keys are reserved for Search V2 (semantic search with LLM answer synthesis):
+> - search.section.answer: "✨ Synthesized Answer"
+> - search.section.evidence: "Evidence"
+> - search.badge.sources: "{n} sources"
+> - search.feedback.helpful: "Helpful"
+> - search.feedback.not_helpful: "Not helpful"
+> - search.loading.answer: "Thinking…"
+
 ---
 
-## Evidence Cards
-- evidence.type.note: "NOTE"
-- evidence.type.article: "ARTICLE"
+## Evidence Cards (V2 Deferred)
+> Reserved for Search V2:
+> - evidence.type.note: "NOTE"
+> - evidence.type.article: "ARTICLE"
 
 ---
 

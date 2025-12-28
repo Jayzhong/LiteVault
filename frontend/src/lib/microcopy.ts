@@ -100,7 +100,7 @@ export const microcopy = {
         },
     },
 
-    // Search
+    // Search (V1 - Lexical Search)
     search: {
         title: 'Search',
         empty: {
@@ -110,35 +110,33 @@ export const microcopy = {
             action: 'Search',
         },
         query: {
-            placeholder: 'Ask anything about your vault...',
+            placeholder: 'Search your vault...',
+            hint: 'Use #tag to search tags only',
         },
         action: {
-            ask: 'Ask →',
+            search: 'Search',
         },
-        section: {
-            answer: '✨ Synthesized Answer',
-            evidence: 'Evidence',
+        mode: {
+            tagOnly: 'Showing tag matches',
+            combined: 'Showing all matches',
         },
-        badge: {
-            sources: '{n} sources',
-        },
-        feedback: {
-            helpful: 'Helpful',
-            notHelpful: 'Not helpful',
-        },
-        loading: {
-            answer: 'Thinking…',
-        },
+        loading: 'Searching...',
         emptyResults: {
             title: 'No matches found',
-            copy: 'Try a different question or save more notes to your vault.',
-            action: 'Go to Home',
+            copyTag: 'No items have matching tags.',
+            copyCombined: 'Try a different search or save more notes to your vault.',
+            actionClear: 'Clear search',
+            actionHome: 'Go to Home',
         },
         error: {
             title: 'Search failed.',
             copy: 'Please try again.',
             action: 'Retry',
         },
+        // V2 Deferred - Semantic Search keys (kept for existing V2 components)
+        section: { answer: '✨ Synthesized Answer', evidence: 'Evidence' },
+        badge: { sources: '{n} sources' },
+        feedback: { helpful: 'Helpful', notHelpful: 'Not helpful' },
     },
 
     // Evidence

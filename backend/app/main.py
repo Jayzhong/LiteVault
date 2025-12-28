@@ -13,6 +13,7 @@ from app.api.v1.items import router as items_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.library import router as library_router
 from app.api.v1.tags import router as tags_router
+from app.api.v1.search import router as search_router
 from app.infrastructure.enrichment.worker import worker
 
 
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     app.include_router(items_router, prefix="/api/v1")
     app.include_router(library_router, prefix="/api/v1")
     app.include_router(tags_router, prefix="/api/v1")
+    app.include_router(search_router, prefix="/api/v1")
 
     return app
 

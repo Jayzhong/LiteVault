@@ -147,6 +147,12 @@ CREATE INDEX idx_items_user_archived ON items(user_id, confirmed_at DESC)
 
 -- For item lookup
 CREATE INDEX idx_items_user_id ON items(user_id);
+
+-- For GET /search (pg_trgm trigram indexes for ILIKE search)
+-- Requires: CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_items_title_trgm ON items USING GIN (title gin_trgm_ops);
+CREATE INDEX idx_items_summary_trgm ON items USING GIN (summary gin_trgm_ops);
+CREATE INDEX idx_items_raw_text_trgm ON items USING GIN (raw_text gin_trgm_ops);
 ```
 
 ---
@@ -490,4 +496,4 @@ alembic upgrade head
 | How to handle tag name case conflicts on merge? | Target tag name preserved, source tags deleted |
 | Should idempotency keys be cleaned up? | Yes, cron job to delete expired keys daily |
 | How to handle concurrent enrichment claims? | `FOR UPDATE SKIP LOCKED` ensures single processing |
-| Should we add full-text search index? | V1: no (API does ILIKE search). V2: consider `tsvector` |
+| Should we add full-text search index? | V1: Use pg_trgm extension with GIN indexes for fast ILIKE. V2: consider `tsvector` or vector embeddings |

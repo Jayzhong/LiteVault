@@ -141,51 +141,61 @@
 ---
 
 ## 4. Search Page (`/search`)
-### Layout (matches prototype)
+
+### Search Mode Behavior (V1)
+Search V1 supports two query modes:
+- **Tag-only mode**: Query starts with `#` → matches tags only
+- **Combined mode**: All other queries → matches text (title/summary/rawText) OR tags
+
+### Layout (V1)
 - Header: "Search"
 - Query bar (top)
-  - Placeholder: "How do I organize my design references?"
-  - Button: "Ask →"
+  - Placeholder: "Search your vault..."
+  - Helper hint: "Use #tag to search tags only"
+  - Button: "Search"
 - Results
-  - Section: "✨ Synthesized Answer" card
-    - Answer text
-    - Feedback: Helpful / Not helpful
-  - Section: "Evidence"
-    - Right badge: "3 sources"
-    - Evidence cards grid (3 columns on desktop)
+  - Mode indicator (optional): "Showing tag matches" or "Showing all matches"
+  - Simple item cards list (same as Library cards)
+  - Pagination (load more)
+
+> **V2 Deferred**: The "Synthesized Answer" and "Evidence" sections are reserved for Search V2 (semantic search with LLM). Not implemented in V1.
 
 ### Components
-- <SearchBar />
-- <AnswerCard />
-- <FeedbackButtons />
-- <EvidenceGrid>
-  - <EvidenceCard type="NOTE|ARTICLE" />
+- `<SearchBar placeholder="Search your vault..." />`
+- `<SearchModeHint />` (shows tag search hint)
+- `<SearchResultsList>` (simple item cards, reuses LibraryItemCard)
 
 ### States
-1) Empty (no query submitted)
-- Use greeting hero (as in your simple Search empty screen):
+1) **Empty** (no query submitted)
+- Use greeting hero:
   - "Good Morning, Alex."
   - "What are you looking for today?"
-  - Placeholder: "Search your vault…"
-  - Button: "Search" (or keep "Ask" consistent)
+  - Placeholder: "Search your vault..."
+  - Button: "Search"
 
-2) Searching
-- Disable Ask button
-- Show skeleton for AnswerCard + EvidenceCard placeholders
+2) **Searching**
+- Disable Search button
+- Show skeleton list placeholders
 
-3) No results
+3) **Results**
+- Show search mode indicator if query was tag-only
+- Display item cards with:
+  - Title, summary snippet, tags badges
+  - Click opens Item Detail Modal (read-only)
+
+4) **No results**
 - Title: "No matches found"
-- Copy: "Try a different question or save more notes to your vault."
-- Action: "Back to Home" (secondary)
+- Copy (tag-only): "No items have matching tags."
+- Copy (combined): "Try a different search or save more notes to your vault."
+- Action: "Clear search" or "Go to Home"
 
-4) Error
+5) **Error**
 - Inline banner in results area:
   - "Search failed. Please try again."
   - Action: Retry
 
-### Evidence card click
-- Opens Item Detail Modal (read-only) or the same Insight modal depending on item type.
-- In V1, open read-only modal is enough.
+### Item card click
+- Opens Item Detail Modal (read-only).
 
 ---
 

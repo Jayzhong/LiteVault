@@ -171,7 +171,7 @@ All fields are optional. Send only fields to update.
 | `PATCH` | `/items/:id` | Update item (edit/confirm/discard) | ✓ |
 | `POST` | `/items/:id/retry` | Retry failed enrichment | ✓ |
 | `GET` | `/library` | List archived items (timeline) | ✓ |
-| `POST` | `/search` | Query vault, get answer + evidence | ✓ |
+| `GET` | `/search` | Search library (lexical, V1) | ✓ |
 | `GET` | `/tags` | List all tags | ✓ |
 | `POST` | `/tags` | Create new tag | ✓ |
 | `PATCH` | `/tags/:id` | Rename tag | ✓ |
@@ -420,18 +420,73 @@ Returns items with status `ARCHIVED`, sorted by `confirmedAt` descending.
 
 ### 5.3 Search
 
-#### `POST /search` — Query Vault
+#### `GET /search` — Search Library (V1)
 
-Performs semantic search and returns synthesized answer with evidence.
+Searches archived items using lexical matching. Supports two modes:
+- **Tag-only mode**: Query starts with `#` → matches tag names only
+- **Combined mode**: Otherwise → matches title/summary/rawText OR tags
 
-**Request**
+**Query Parameters**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `q` | string | required | Search query (non-empty) |
+| `cursor` | string | null | Pagination cursor |
+| `limit` | number | 20 | Items per page (max 100) |
+
+**Query Parsing Rules**
+| Query | Mode | Behavior |
+|-------|------|----------|
+| `#work` | tag_only | Match items with tags containing "work" |
+| `meeting notes` | combined | Match items where text OR tags contain "meeting notes" |
+
+**Response** `200 OK`
 ```json
 {
-  "query": "How do I organize my design references?"
+  "items": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "Product Review Meeting Notes",
+      "summary": "Product review discussing Q1 roadmap...",
+      "tags": ["Meetings", "Product"],
+      "sourceType": "NOTE",
+      "confirmedAt": "2025-12-27T13:05:00.000Z"
+    }
+  ],
+  "mode": "combined",
+  "pagination": {
+    "cursor": "eyJjb25maXJtZWRBdCI6IjIwMjUtMTItMjdUMTM6MDU6MDAuMDAwWiJ9",
+    "hasMore": true
+  },
+  "total": 42
 }
 ```
 
-**Response** `200 OK`
+**Ordering**: Results ordered by `confirmed_at DESC, id DESC` (most recent first).
+
+**Error Cases**
+| Status | Code | Description |
+|--------|------|-------------|
+| 400 | `VALIDATION_ERROR` | Query empty after trimming |
+| 400 | `INVALID_CURSOR` | Malformed pagination cursor |
+| 401 | `UNAUTHORIZED` | Missing/invalid auth |
+
+---
+
+#### `POST /search` — Semantic Search (V2 — Not Implemented)
+
+> ⚠️ **NOT IMPLEMENTED**: Reserved for future semantic search with LLM answer synthesis.
+
+Future endpoint for AI-powered search with synthesized answers and evidence.
+
+**Request** (V2 Future)
+```json
+{
+  "query": "How do I organize my design references?",
+  "mode": "semantic"
+}
+```
+
+**Response** (V2 Future)
 ```json
 {
   "answer": "Based on your notes, here are the key insights...",
@@ -448,12 +503,6 @@ Performs semantic search and returns synthesized answer with evidence.
   "totalSources": 3
 }
 ```
-
-**Error Cases**
-| Status | Code | Description |
-|--------|------|-------------|
-| 400 | `VALIDATION_ERROR` | Query is empty |
-| 503 | `AI_SERVICE_UNAVAILABLE` | Search backend unavailable |
 
 ---
 
