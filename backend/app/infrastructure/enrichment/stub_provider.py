@@ -1,32 +1,28 @@
-"""Stub AI provider for development."""
+"""Stub AI provider for development and testing."""
 
 import hashlib
-from dataclasses import dataclass
 
 from app.domain.value_objects import SourceType
+from app.infrastructure.enrichment.provider_interface import (
+    EnrichmentProvider,
+    EnrichmentResult,
+)
 
 
-@dataclass
-class EnrichmentResult:
-    """Result of AI enrichment."""
-
-    title: str
-    summary: str
-    suggested_tags: list[str]
-    source_type: SourceType
-
-
-class StubAIProvider:
-    """Stub AI provider that generates deterministic enrichment results."""
+class StubAIProvider(EnrichmentProvider):
+    """Stub AI provider that generates deterministic enrichment results.
+    
+    Used for development and testing without making real LLM API calls.
+    """
 
     # Predefined tag lists for variety
     TAG_SETS = [
-        ["Ideas", "Notes"],
-        ["Research", "Learning"],
-        ["Work", "Projects"],
-        ["Personal", "Ideas"],
-        ["Meetings", "Notes"],
-        ["Design", "Creative"],
+        ["ideas", "notes"],
+        ["research", "learning"],
+        ["work", "projects"],
+        ["personal", "ideas"],
+        ["meetings", "notes"],
+        ["design", "creative"],
     ]
 
     async def enrich_item(self, raw_text: str) -> EnrichmentResult:
@@ -57,3 +53,4 @@ class StubAIProvider:
             suggested_tags=suggested_tags,
             source_type=source_type,
         )
+

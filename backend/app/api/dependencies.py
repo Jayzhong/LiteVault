@@ -28,37 +28,41 @@ from app.domain.entities.user import User
 from app.domain.exceptions import UnauthorizedException
 
 
-async def get_user_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> SQLAlchemyUserRepository:
-    """Get user repository."""
+# Session dependency type alias
+DbSession = Annotated[AsyncSession, Depends(get_db_session)]
+
+
+def get_user_repository(session: DbSession) -> SQLAlchemyUserRepository:
+    """Get user repository with shared session."""
     return SQLAlchemyUserRepository(session)
 
 
-async def get_item_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> SQLAlchemyItemRepository:
-    """Get item repository."""
+def get_item_repository(session: DbSession) -> SQLAlchemyItemRepository:
+    """Get item repository with shared session."""
     return SQLAlchemyItemRepository(session)
 
 
-async def get_idempotency_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> SQLAlchemyIdempotencyRepository:
-    """Get idempotency repository."""
+def get_idempotency_repository(session: DbSession) -> SQLAlchemyIdempotencyRepository:
+    """Get idempotency repository with shared session."""
     return SQLAlchemyIdempotencyRepository(session)
 
 
-async def get_outbox_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> SQLAlchemyOutboxRepository:
-    """Get outbox repository."""
+def get_outbox_repository(session: DbSession) -> SQLAlchemyOutboxRepository:
+    """Get outbox repository with shared session."""
     return SQLAlchemyOutboxRepository(session)
+
+
+def get_tag_repository(session: DbSession):
+    """Get tag repository with shared session."""
+    from app.infrastructure.persistence.repositories.tag_repository_impl import (
+        SQLAlchemyTagRepository,
+    )
+    return SQLAlchemyTagRepository(session)
 
 
 async def get_current_user(
     request: Request,
-    user_repo: SQLAlchemyUserRepository = Depends(get_user_repository),
+    session: DbSession,
 ) -> User:
     """
     Get current user with auth precedence:
@@ -66,6 +70,8 @@ async def get_current_user(
     2. X-Dev-User-Id header (if AUTH_MODE is mixed or dev)
     3. 401 Unauthorized
     """
+    user_repo = SQLAlchemyUserRepository(session)
+    
     # 1. Try Clerk JWT from Authorization header
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):

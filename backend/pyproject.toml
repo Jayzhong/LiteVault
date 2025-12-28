@@ -13,6 +13,8 @@ dependencies = [
     "alembic>=1.14.0",
     "python-multipart>=0.0.18",
     "PyJWT[crypto]>=2.8.0",
+    "litellm>=1.80.11",
+    "instructor>=1.13.0",
 ]
 
 [dependency-groups]

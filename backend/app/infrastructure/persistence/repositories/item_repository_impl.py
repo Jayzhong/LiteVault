@@ -48,13 +48,28 @@ class SQLAlchemyItemRepository(ItemRepository):
         return self._to_entity(model)
 
     async def get_by_id_for_update(self, item_id: str, user_id: str) -> Item | None:
-        """Get item by ID with row lock for update."""
+        """Get item by ID with row lock for update (user-scoped)."""
         result = await self.session.execute(
             select(ItemModel)
             .where(
                 ItemModel.id == item_id,
                 ItemModel.user_id == user_id,
             )
+            .with_for_update()
+        )
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        return self._to_entity(model)
+
+    async def get_by_id_for_update_system(self, item_id: str) -> Item | None:
+        """Get item by ID with row lock for update (no user scoping).
+        
+        For internal worker use only - bypasses user security check.
+        """
+        result = await self.session.execute(
+            select(ItemModel)
+            .where(ItemModel.id == item_id)
             .with_for_update()
         )
         model = result.scalar_one_or_none()

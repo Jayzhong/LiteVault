@@ -11,6 +11,12 @@ class AuthMode(str, Enum):
     DEV = "dev"      # Dev fallback only (no Clerk verification)
 
 
+class LLMProvider(str, Enum):
+    """LLM provider selection."""
+    STUB = "stub"      # Stub provider for dev/testing (no API calls)
+    LITELLM = "litellm"  # LiteLLM + Instructor (real LLM calls)
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -36,6 +42,16 @@ class Settings(BaseSettings):
     enrichment_poll_interval_secs: int = 2
     enrichment_max_retries: int = 3
 
+    # LLM Settings
+    llm_provider: LLMProvider = LLMProvider.STUB  # stub for dev, litellm for production
+    llm_model: str = "openai/gpt-4o-mini"  # LiteLLM model identifier
+    llm_fallback_models: str = ""  # Comma-separated fallback models
+    llm_temperature: float = 0.3  # Lower for more deterministic output
+    llm_max_tokens: int = 1024
+    llm_timeout_seconds: int = 30
+    llm_max_retries: int = 2  # Instructor retry on validation failure
+    llm_concurrency: int = 3  # Max concurrent LLM calls
+
     # Logging
     log_level: str = "INFO"
 
@@ -56,5 +72,13 @@ class Settings(BaseSettings):
         """Check if dev auth fallback is allowed."""
         return self.auth_mode in (AuthMode.MIXED, AuthMode.DEV)
 
+    @property
+    def llm_fallback_model_list(self) -> list[str]:
+        """Parse fallback models from comma-separated string."""
+        if not self.llm_fallback_models:
+            return []
+        return [m.strip() for m in self.llm_fallback_models.split(",") if m.strip()]
+
 
 settings = Settings()
+
