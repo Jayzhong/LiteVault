@@ -11,6 +11,8 @@ from app.api.error_handlers import register_error_handlers
 from app.api.v1.health import router as health_router
 from app.api.v1.items import router as items_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.library import router as library_router
+from app.api.v1.tags import router as tags_router
 from app.infrastructure.enrichment.worker import worker
 
 
@@ -50,6 +52,8 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(items_router, prefix="/api/v1")
+    app.include_router(library_router, prefix="/api/v1")
+    app.include_router(tags_router, prefix="/api/v1")
 
     return app
 

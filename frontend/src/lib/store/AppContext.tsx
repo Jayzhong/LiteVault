@@ -17,7 +17,7 @@ interface AppContextType {
     // Pending items
     pendingItems: Item[];
     addPendingItem: (rawText: string) => Promise<void>;
-    confirmItem: (id: string, tags?: string[]) => Promise<void>;
+    confirmItem: (id: string, edits?: { title?: string; summary?: string; tags?: string[] }) => Promise<void>;
     discardItem: (id: string) => Promise<void>;
     retryItem: (id: string) => Promise<void>;
 
@@ -172,20 +172,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Confirm an item (move to library)
     const confirmItem = useCallback(
-        async (id: string, itemTags?: string[]) => {
+        async (id: string, edits?: { title?: string; summary?: string; tags?: string[] }) => {
             if (isUsingRealApi) {
                 // Real API mode
                 try {
                     setIsLoading(true);
                     clearError();
-                    await apiClient.confirmItem(id, itemTags);
+                    await apiClient.confirmItem(id, edits);
                     // Remove from pending
                     const item = pendingItems.find((i) => i.id === id);
                     if (item) {
                         const confirmedItem: Item = {
                             ...item,
                             status: 'ARCHIVED',
-                            tags: itemTags || item.tags,
+                            tags: edits?.tags || item.tags,
                             confirmedAt: new Date(),
                             updatedAt: new Date(),
                         };
@@ -206,7 +206,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     const confirmedItem: Item = {
                         ...item,
                         status: 'ARCHIVED',
-                        tags: itemTags || item.tags,
+                        tags: edits?.tags || item.tags,
                         confirmedAt: new Date(),
                         updatedAt: new Date(),
                     };

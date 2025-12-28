@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Define public routes that don't require authentication
+// Public routes: Home page, auth pages, and API health check
+// Users can view Home without signing in
 const isPublicRoute = createRouteMatcher([
     "/",
     "/auth/login(.*)",
@@ -8,10 +9,20 @@ const isPublicRoute = createRouteMatcher([
     "/api/health(.*)",
 ]);
 
+// Protected routes require authentication
+// These will redirect to /auth/login if unauthenticated
+const isProtectedRoute = createRouteMatcher([
+    "/settings(.*)",
+    "/library(.*)",
+]);
+
 export default clerkMiddleware(async (auth, request) => {
-    // Protect all routes except public ones
-    if (!isPublicRoute(request)) {
-        await auth.protect();
+    // Only protect specific routes, not all non-public routes
+    // This allows Home (/) to be public while protecting /settings, /library, /search
+    if (isProtectedRoute(request)) {
+        await auth.protect({
+            unauthenticatedUrl: "/auth/login",
+        });
     }
 });
 

@@ -4,26 +4,31 @@ import { useState } from 'react';
 import { microcopy } from '@/lib/microcopy';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { TimelineGroup } from '@/components/domain/library/TimelineGroup';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { useAppContext } from '@/lib/store/AppContext';
-import { Search } from 'lucide-react';
+import { useLibrary } from '@/lib/hooks/useLibrary';
+import { useAccountProfile } from '@/lib/hooks/useAccountProfile';
+import { getTimelineGroupLabel } from '@/lib/utils/dateFormat';
+import { Search, AlertCircle } from 'lucide-react';
 import type { Item } from '@/lib/types';
 
 export default function LibraryPage() {
-    const { libraryItems, isLoading } = useAppContext();
+    const { items, isLoading, isError, hasMore, fetchNextPage, isFetchingNextPage, refetch } = useLibrary();
+    const { profile } = useAccountProfile();
+    const userTimezone = profile?.preferences?.timezone || 'UTC';
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Filter items by search query
-    const filteredItems = libraryItems.filter((item) =>
+    // Filter items by search query (client-side)
+    const filteredItems = items.filter((item) =>
         searchQuery
             ? item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.rawText.toLowerCase().includes(searchQuery.toLowerCase())
             : true
     );
 
-    // Group items by date
-    const groupedItems = groupItemsByDate(filteredItems);
+    // Group items by date using user's timezone
+    const groupedItems = groupItemsByDate(filteredItems, userTimezone);
 
     // Loading state
     if (isLoading) {
@@ -48,8 +53,28 @@ export default function LibraryPage() {
         );
     }
 
+    // Error state
+    if (isError) {
+        return (
+            <div className="space-y-8">
+                <h1 className="text-2xl font-semibold text-foreground">
+                    {microcopy.library.title}
+                </h1>
+                <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                    <AlertCircle className="h-12 w-12 text-destructive" />
+                    <h2 className="text-xl font-medium text-foreground">
+                        {microcopy.library.error?.title || "Couldn't load library"}
+                    </h2>
+                    <Button onClick={() => refetch()} variant="outline">
+                        {microcopy.library.error?.action || 'Retry'}
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     // Empty state
-    if (libraryItems.length === 0) {
+    if (items.length === 0) {
         return (
             <div className="space-y-8">
                 <h1 className="text-2xl font-semibold text-foreground">
@@ -90,6 +115,19 @@ export default function LibraryPage() {
                 ))}
             </div>
 
+            {/* Load More Button */}
+            {hasMore && (
+                <div className="flex justify-center">
+                    <Button
+                        onClick={() => fetchNextPage()}
+                        disabled={isFetchingNextPage}
+                        variant="outline"
+                    >
+                        {isFetchingNextPage ? 'Loading...' : 'Load More'}
+                    </Button>
+                </div>
+            )}
+
             {/* Empty filtered state */}
             {filteredItems.length === 0 && searchQuery && (
                 <div className="text-center py-12">
@@ -100,26 +138,31 @@ export default function LibraryPage() {
     );
 }
 
-// Helper function to group items by date
-function groupItemsByDate(items: Item[]) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-    const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
+// Helper function to group items by date using user's timezone
+function groupItemsByDate(items: Item[], userTimezone: string) {
     const groups: { label: string; items: Item[] }[] = [];
     const todayItems: Item[] = [];
     const yesterdayItems: Item[] = [];
     const lastWeekItems: Item[] = [];
+    const olderItems: Item[] = [];
 
     items.forEach((item) => {
-        const itemDate = new Date(item.createdAt);
-        if (itemDate >= today) {
-            todayItems.push(item);
-        } else if (itemDate >= yesterday) {
-            yesterdayItems.push(item);
-        } else if (itemDate >= lastWeek) {
-            lastWeekItems.push(item);
+        // Use confirmedAt for library items, fallback to createdAt
+        const itemDate = item.confirmedAt || item.createdAt;
+        const groupLabel = getTimelineGroupLabel(itemDate, userTimezone);
+
+        switch (groupLabel) {
+            case 'today':
+                todayItems.push(item);
+                break;
+            case 'yesterday':
+                yesterdayItems.push(item);
+                break;
+            case 'last7days':
+                lastWeekItems.push(item);
+                break;
+            default:
+                olderItems.push(item);
         }
     });
 
@@ -131,6 +174,9 @@ function groupItemsByDate(items: Item[]) {
     }
     if (lastWeekItems.length > 0) {
         groups.push({ label: microcopy.library.group.last7days, items: lastWeekItems });
+    }
+    if (olderItems.length > 0) {
+        groups.push({ label: 'Older', items: olderItems });
     }
 
     return groups;

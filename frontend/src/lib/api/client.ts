@@ -59,6 +59,39 @@ export interface RetryResponse {
     updatedAt: string;
 }
 
+export interface LibraryItemResponse {
+    id: string;
+    rawText: string;
+    title: string | null;
+    summary: string | null;
+    tags: string[];
+    status: string;
+    sourceType: string | null;
+    createdAt: string;
+    confirmedAt: string | null;
+}
+
+export interface LibraryResponse {
+    items: LibraryItemResponse[];
+    pagination: {
+        cursor: string | null;
+        hasMore: boolean;
+    };
+}
+
+export interface TagResponse {
+    id: string;
+    name: string;
+    usageCount: number;
+    lastUsed: string | null;
+    createdAt: string;
+}
+
+export interface TagsListResponse {
+    tags: TagResponse[];
+    total: number;
+}
+
 // Helper to convert API dates to Date objects
 function parseApiItem(item: CreateItemResponse): Item {
     return {
@@ -188,11 +221,20 @@ class ApiClient {
 
     /**
      * Confirm item (PATCH /items/:id with action=confirm)
+     * Optionally pass title, summary, tags to edit before confirming.
      */
-    async confirmItem(id: string, tags?: string[]): Promise<UpdateItemResponse> {
+    async confirmItem(
+        id: string,
+        edits?: { title?: string; summary?: string; tags?: string[] }
+    ): Promise<UpdateItemResponse> {
         return this.fetch<UpdateItemResponse>(`/api/v1/items/${id}`, {
             method: 'PATCH',
-            body: JSON.stringify({ action: 'confirm', tags }),
+            body: JSON.stringify({
+                action: 'confirm',
+                title: edits?.title,
+                summary: edits?.summary,
+                tags: edits?.tags,
+            }),
         });
     }
 
@@ -212,6 +254,64 @@ class ApiClient {
     async retryItem(id: string): Promise<RetryResponse> {
         return this.fetch<RetryResponse>(`/api/v1/items/${id}/retry`, {
             method: 'POST',
+        });
+    }
+
+    /**
+     * Get library items (GET /library)
+     */
+    async getLibrary(cursor?: string, limit: number = 20): Promise<LibraryResponse> {
+        const params = new URLSearchParams();
+        if (cursor) params.set('cursor', cursor);
+        params.set('limit', limit.toString());
+        const queryString = params.toString();
+        return this.fetch<LibraryResponse>(`/api/v1/library?${queryString}`);
+    }
+
+    /**
+     * Get tags (GET /tags)
+     */
+    async getTags(params?: {
+        q?: string;
+        sort?: 'name' | 'usage' | 'lastUsed';
+        unused?: boolean;
+        limit?: number;
+    }): Promise<TagsListResponse> {
+        const searchParams = new URLSearchParams();
+        if (params?.q) searchParams.set('q', params.q);
+        if (params?.sort) searchParams.set('sort', params.sort);
+        if (params?.unused !== undefined) searchParams.set('unused', String(params.unused));
+        if (params?.limit) searchParams.set('limit', String(params.limit));
+        const queryString = searchParams.toString();
+        return this.fetch<TagsListResponse>(`/api/v1/tags${queryString ? `?${queryString}` : ''}`);
+    }
+
+    /**
+     * Create tag (POST /tags)
+     */
+    async createTag(name: string): Promise<TagResponse> {
+        return this.fetch<TagResponse>('/api/v1/tags', {
+            method: 'POST',
+            body: JSON.stringify({ name }),
+        });
+    }
+
+    /**
+     * Rename tag (PATCH /tags/:id)
+     */
+    async renameTag(id: string, name: string): Promise<TagResponse> {
+        return this.fetch<TagResponse>(`/api/v1/tags/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name }),
+        });
+    }
+
+    /**
+     * Delete tag (DELETE /tags/:id)
+     */
+    async deleteTag(id: string): Promise<void> {
+        await this.fetch<void>(`/api/v1/tags/${id}`, {
+            method: 'DELETE',
         });
     }
 }

@@ -26,6 +26,13 @@ class ValidationException(DomainException):
     http_status = 400
 
 
+class InvalidCursorException(DomainException):
+    """Invalid pagination cursor."""
+
+    code = "INVALID_CURSOR"
+    http_status = 400
+
+
 class InvalidStateException(DomainException):
     """Resource is not in expected state."""
 

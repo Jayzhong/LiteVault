@@ -303,3 +303,251 @@ async def test_different_idempotency_keys_create_different_items(
     # Should be different items
     assert item1["id"] != item2["id"]
 
+
+# ============================================================================
+# Happy Path Tests: Confirm, Discard, Edit+Confirm
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_confirm_item_happy_path(
+    client: AsyncClient, dev_user_headers: dict, db_session
+) -> None:
+    """Test confirming item from READY_TO_CONFIRM -> ARCHIVED."""
+    from sqlalchemy import update
+    from app.infrastructure.persistence.models.item_model import ItemModel
+    
+    # Create item
+    create_response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "Test note to confirm"},
+        headers=dev_user_headers,
+    )
+    assert create_response.status_code == 201
+    item_id = create_response.json()["id"]
+    
+    # Simulate enrichment complete
+    await db_session.execute(
+        update(ItemModel)
+        .where(ItemModel.id == item_id)
+        .values(
+            status="READY_TO_CONFIRM",
+            title="Generated Title",
+            summary="Generated Summary",
+        )
+    )
+    await db_session.commit()
+    
+    # Confirm
+    response = await client.patch(
+        f"/api/v1/items/{item_id}",
+        json={"action": "confirm", "tags": ["TestTag"]},
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ARCHIVED"
+    assert data["confirmedAt"] is not None
+    assert data["tags"] == ["TestTag"]
+    
+    # Verify item no longer in pending
+    pending_response = await client.get(
+        "/api/v1/items/pending",
+        headers=dev_user_headers,
+    )
+    pending_ids = [item["id"] for item in pending_response.json()["items"]]
+    assert item_id not in pending_ids
+
+
+@pytest.mark.asyncio
+async def test_confirm_item_with_edits(
+    client: AsyncClient, dev_user_headers: dict, db_session
+) -> None:
+    """Test confirming item with inline edits (title, summary, tags)."""
+    from sqlalchemy import update
+    from app.infrastructure.persistence.models.item_model import ItemModel
+    
+    # Create and simulate enrichment
+    create_response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "Test note for edit+confirm"},
+        headers=dev_user_headers,
+    )
+    item_id = create_response.json()["id"]
+    
+    await db_session.execute(
+        update(ItemModel)
+        .where(ItemModel.id == item_id)
+        .values(
+            status="READY_TO_CONFIRM",
+            title="AI Generated Title",
+            summary="AI Generated Summary",
+            tags=["SuggestedTag"],
+        )
+    )
+    await db_session.commit()
+    
+    # Confirm with edits
+    response = await client.patch(
+        f"/api/v1/items/{item_id}",
+        json={
+            "action": "confirm",
+            "title": "User Edited Title",
+            "summary": "User Edited Summary",
+            "tags": ["CustomTag1", "CustomTag2"],
+        },
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ARCHIVED"
+    assert data["title"] == "User Edited Title"
+    assert data["summary"] == "User Edited Summary"
+    assert data["tags"] == ["CustomTag1", "CustomTag2"]
+
+
+@pytest.mark.asyncio
+async def test_discard_item_from_ready_to_confirm(
+    client: AsyncClient, dev_user_headers: dict, db_session
+) -> None:
+    """Test discarding item from READY_TO_CONFIRM -> DISCARDED."""
+    from sqlalchemy import update
+    from app.infrastructure.persistence.models.item_model import ItemModel
+    
+    # Create and simulate enrichment
+    create_response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "Test note to discard"},
+        headers=dev_user_headers,
+    )
+    item_id = create_response.json()["id"]
+    
+    await db_session.execute(
+        update(ItemModel)
+        .where(ItemModel.id == item_id)
+        .values(status="READY_TO_CONFIRM", title="Title", summary="Summary")
+    )
+    await db_session.commit()
+    
+    # Discard
+    response = await client.patch(
+        f"/api/v1/items/{item_id}",
+        json={"action": "discard"},
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "DISCARDED"
+    
+    # Verify item no longer in pending
+    pending_response = await client.get(
+        "/api/v1/items/pending",
+        headers=dev_user_headers,
+    )
+    pending_ids = [item["id"] for item in pending_response.json()["items"]]
+    assert item_id not in pending_ids
+
+
+@pytest.mark.asyncio
+async def test_discard_item_from_failed(
+    client: AsyncClient, dev_user_headers: dict, db_session
+) -> None:
+    """Test discarding item from FAILED -> DISCARDED."""
+    from sqlalchemy import update
+    from app.infrastructure.persistence.models.item_model import ItemModel
+    
+    # Create and simulate failure
+    create_response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "Test note that failed"},
+        headers=dev_user_headers,
+    )
+    item_id = create_response.json()["id"]
+    
+    await db_session.execute(
+        update(ItemModel)
+        .where(ItemModel.id == item_id)
+        .values(status="FAILED")
+    )
+    await db_session.commit()
+    
+    # Discard from FAILED
+    response = await client.patch(
+        f"/api/v1/items/{item_id}",
+        json={"action": "discard"},
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "DISCARDED"
+
+
+@pytest.mark.asyncio
+async def test_retry_from_failed_happy_path(
+    client: AsyncClient, dev_user_headers: dict, db_session
+) -> None:
+    """Test retry from FAILED -> ENRICHING."""
+    from sqlalchemy import update
+    from app.infrastructure.persistence.models.item_model import ItemModel
+    
+    # Create and simulate failure
+    create_response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "Test note that failed enrichment"},
+        headers=dev_user_headers,
+    )
+    item_id = create_response.json()["id"]
+    
+    await db_session.execute(
+        update(ItemModel)
+        .where(ItemModel.id == item_id)
+        .values(status="FAILED")
+    )
+    await db_session.commit()
+    
+    # Retry
+    response = await client.post(
+        f"/api/v1/items/{item_id}/retry",
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ENRICHING"
+
+
+@pytest.mark.asyncio
+async def test_confirm_from_failed_returns_409(
+    client: AsyncClient, dev_user_headers: dict, db_session
+) -> None:
+    """Test confirming item from FAILED returns 409."""
+    from sqlalchemy import update
+    from app.infrastructure.persistence.models.item_model import ItemModel
+    
+    # Create and simulate failure
+    create_response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "Test note that failed"},
+        headers=dev_user_headers,
+    )
+    item_id = create_response.json()["id"]
+    
+    await db_session.execute(
+        update(ItemModel)
+        .where(ItemModel.id == item_id)
+        .values(status="FAILED")
+    )
+    await db_session.commit()
+    
+    # Try to confirm
+    response = await client.patch(
+        f"/api/v1/items/{item_id}",
+        json={"action": "confirm", "tags": []},
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 409
+    data = response.json()
+    assert data["error"]["code"] == "INVALID_STATE_TRANSITION"
+    assert data["error"]["details"]["currentState"] == "FAILED"
+    assert data["error"]["details"]["attemptedAction"] == "confirm"
+    assert "requestId" in data["error"]
+
+

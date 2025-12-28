@@ -27,6 +27,11 @@ class UpdateItemUseCase:
 
         # Handle action
         if input.action == "confirm":
+            # Apply any inline edits before confirming
+            if input.title is not None:
+                item.title = input.title
+            if input.summary is not None:
+                item.summary = input.summary
             item.confirm(tags=input.tags)
         elif input.action == "discard":
             item.discard()

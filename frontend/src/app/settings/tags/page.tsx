@@ -13,52 +13,32 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { TagsTable } from '@/components/domain/tags/TagsTable';
 import { CreateTagModal } from '@/components/domain/tags/CreateTagModal';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { useAppContext } from '@/lib/store/AppContext';
-import { Search, ChevronDown, BarChart3, Plus } from 'lucide-react';
+import { useTags } from '@/lib/hooks/useTags';
+import { Search, ChevronDown, BarChart3, Plus, AlertCircle } from 'lucide-react';
 
 export default function TagManagementPage() {
-    const { tags, addTag, isLoading } = useAppContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<'name' | 'usage' | 'lastUsed'>('name');
     const [showUnused, setShowUnused] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    // Filter and sort tags
-    const filteredTags = tags
-        .filter((tag) => {
-            const matchesSearch = tag.name.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesUnused = showUnused ? tag.usageCount === 0 : true;
-            return matchesSearch && matchesUnused;
-        })
-        .sort((a, b) => {
-            switch (sortBy) {
-                case 'name':
-                    return a.name.localeCompare(b.name);
-                case 'usage':
-                    return b.usageCount - a.usageCount;
-                case 'lastUsed':
-                    if (!a.lastUsed) return 1;
-                    if (!b.lastUsed) return -1;
-                    return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
-                default:
-                    return 0;
-            }
-        });
+    // Use real API with useTags hook
+    const { tags, isLoading, isError, createTag, refetch, isCreating } = useTags({
+        q: searchQuery || undefined,
+        sort: sortBy,
+        unused: showUnused || undefined,
+    });
 
-    const handleCreateTag = (name: string) => {
-        addTag(name);
-        setIsCreateModalOpen(false);
+    const handleCreateTag = async (name: string) => {
+        try {
+            await createTag(name);
+            setIsCreateModalOpen(false);
+        } catch {
+            // Error handled by mutation
+        }
     };
 
     const clearFilters = () => {
@@ -77,6 +57,30 @@ export default function TagManagementPage() {
                 <div className="space-y-4">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-64 w-full" />
+                </div>
+            </div>
+        );
+    }
+
+    // Error state
+    if (isError) {
+        return (
+            <div className="space-y-8">
+                <nav className="text-sm text-muted-foreground">
+                    <Link href="/settings" className="hover:text-foreground">
+                        Settings
+                    </Link>
+                    <span className="mx-2">/</span>
+                    <span className="text-foreground">Tag Management</span>
+                </nav>
+                <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                    <AlertCircle className="h-12 w-12 text-destructive" />
+                    <h2 className="text-xl font-medium text-foreground">
+                        Couldn't load tags
+                    </h2>
+                    <Button onClick={() => refetch()} variant="outline">
+                        Retry
+                    </Button>
                 </div>
             </div>
         );
@@ -106,7 +110,7 @@ export default function TagManagementPage() {
                         <BarChart3 className="h-4 w-4 mr-2" />
                         {microcopy.tags.action.analytics}
                     </Button>
-                    <Button size="sm" onClick={() => setIsCreateModalOpen(true)}>
+                    <Button size="sm" onClick={() => setIsCreateModalOpen(true)} disabled={isCreating}>
                         <Plus className="h-4 w-4 mr-2" />
                         {microcopy.tags.action.create}
                     </Button>
@@ -158,14 +162,14 @@ export default function TagManagementPage() {
             </div>
 
             {/* Table or Empty State */}
-            {tags.length === 0 ? (
+            {tags.length === 0 && !searchQuery && !showUnused ? (
                 <EmptyState
                     title={microcopy.tags.empty.title}
                     copy={microcopy.tags.empty.copy}
                     actionLabel={microcopy.tags.empty.action}
                     actionHref="/"
                 />
-            ) : filteredTags.length === 0 ? (
+            ) : tags.length === 0 ? (
                 <div className="text-center py-12 space-y-4">
                     <p className="text-muted-foreground">{microcopy.tags.emptyFiltered.title}</p>
                     <Button variant="ghost" onClick={clearFilters}>
@@ -173,7 +177,7 @@ export default function TagManagementPage() {
                     </Button>
                 </div>
             ) : (
-                <TagsTable tags={filteredTags} />
+                <TagsTable tags={tags} />
             )}
 
             {/* Create Tag Modal */}

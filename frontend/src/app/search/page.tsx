@@ -1,24 +1,48 @@
 'use client';
 
 import { useState } from 'react';
-import { getGreeting, microcopy } from '@/lib/microcopy';
+import { useRouter } from 'next/navigation';
+import { microcopy } from '@/lib/microcopy';
 import { InputBar } from '@/components/shared/InputBar';
 import { AnswerCard } from '@/components/domain/search/AnswerCard';
 import { EvidenceGrid } from '@/components/domain/search/EvidenceGrid';
 import { SearchEmptyState } from '@/components/domain/search/SearchEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/lib/store/AppContext';
-import type { SearchResult } from '@/lib/types';
+import { useAccountProfile } from '@/lib/hooks/useAccountProfile';
 
 type SearchState = 'idle' | 'searching' | 'results' | 'no_results' | 'error';
 
+// LocalStorage key for draft search query
+const SEARCH_DRAFT_KEY = 'litevault_search_draft';
+
 export default function SearchPage() {
     const { performSearch, searchResult, setSearchResult } = useAppContext();
+    const { isSignedIn } = useAccountProfile();
+    const router = useRouter();
     const [searchState, setSearchState] = useState<SearchState>('idle');
     const [query, setQuery] = useState('');
 
     const handleSearch = async (searchQuery: string) => {
         if (!searchQuery.trim()) return;
+
+        // If signed out, save draft and redirect to login
+        if (!isSignedIn) {
+            try {
+                localStorage.setItem(SEARCH_DRAFT_KEY, searchQuery);
+            } catch {
+                // Silently fail if localStorage is not available
+            }
+            router.push('/auth/login?redirect_url=/search');
+            return;
+        }
+
+        // Clear any saved draft
+        try {
+            localStorage.removeItem(SEARCH_DRAFT_KEY);
+        } catch {
+            // Silently fail
+        }
 
         setQuery(searchQuery);
         setSearchState('searching');
@@ -41,6 +65,16 @@ export default function SearchPage() {
         }
     };
 
+    // Get saved draft for defaultValue
+    const getSavedDraft = (): string => {
+        if (typeof window === 'undefined') return '';
+        try {
+            return localStorage.getItem(SEARCH_DRAFT_KEY) || '';
+        } catch {
+            return '';
+        }
+    };
+
     // Empty/idle state
     if (searchState === 'idle') {
         return <SearchEmptyState onSearch={handleSearch} />;
@@ -59,7 +93,7 @@ export default function SearchPage() {
                 placeholder={microcopy.search.query.placeholder}
                 buttonLabel={microcopy.search.action.ask}
                 onSubmit={handleSearch}
-                defaultValue={query}
+                defaultValue={query || getSavedDraft()}
                 disabled={searchState === 'searching'}
             />
 

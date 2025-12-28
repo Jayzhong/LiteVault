@@ -12,6 +12,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/lib/store/AppContext';
+import { useAccountProfile } from '@/lib/hooks/useAccountProfile';
+import { formatRelativeDate } from '@/lib/utils/dateFormat';
 import type { Tag } from '@/lib/types';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import {
@@ -28,15 +30,12 @@ interface TagsTableProps {
 
 export function TagsTable({ tags }: TagsTableProps) {
     const { deleteTag } = useAppContext();
+    const { profile } = useAccountProfile();
+    const userTimezone = profile?.preferences?.timezone || 'UTC';
 
     const formatDate = (date: Date | null) => {
         if (!date) return 'Never';
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays === 0) return 'Today';
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
-        return date.toLocaleDateString();
+        return formatRelativeDate(date, userTimezone);
     };
 
     const handleRename = (tag: Tag) => {

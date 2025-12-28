@@ -113,3 +113,47 @@ class SQLAlchemyItemRepository(ItemRepository):
             updated_at=model.updated_at,
             confirmed_at=model.confirmed_at,
         )
+
+    async def get_archived_by_user(
+        self,
+        user_id: str,
+        cursor: tuple | None = None,
+        limit: int = 20,
+    ) -> list[Item]:
+        """Get archived items for user with cursor pagination.
+        
+        Ordered by (confirmed_at DESC, id DESC) for stable pagination.
+        Cursor is (confirmed_at, id) tuple.
+        """
+        from sqlalchemy import or_, and_
+        
+        query = (
+            select(ItemModel)
+            .where(
+                ItemModel.user_id == user_id,
+                ItemModel.status == ItemStatus.ARCHIVED.value,
+            )
+        )
+        
+        # Apply cursor filter
+        if cursor:
+            last_confirmed_at, last_id = cursor
+            query = query.where(
+                or_(
+                    ItemModel.confirmed_at < last_confirmed_at,
+                    and_(
+                        ItemModel.confirmed_at == last_confirmed_at,
+                        ItemModel.id < last_id,
+                    ),
+                )
+            )
+        
+        # Order by (confirmed_at DESC, id DESC) for stable pagination
+        query = query.order_by(
+            ItemModel.confirmed_at.desc(),
+            ItemModel.id.desc(),
+        ).limit(limit)
+        
+        result = await self.session.execute(query)
+        models = result.scalars().all()
+        return [self._to_entity(m) for m in models]

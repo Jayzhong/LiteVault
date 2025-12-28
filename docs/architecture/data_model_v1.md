@@ -14,7 +14,7 @@
 
 ### Conventions
 
-- **IDs**: UUID v4, stored as `UUID` type (Postgres) or `TEXT` (SQLite)
+- **IDs**: UUID v4 format, stored as `VARCHAR(36)` for cross-DB compatibility
 - **Timestamps**: UTC, stored as `TIMESTAMP WITH TIME ZONE`
 - **Soft Delete**: `DISCARDED` items retained with status change, not physically deleted
 - **Case Sensitivity**: Tag names case-preserving, matching case-insensitive
