@@ -1,0 +1,1 @@
+"""LiteVault Backend Application."""

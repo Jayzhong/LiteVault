@@ -25,28 +25,136 @@ Production:  https://api.litevault.app/api/v1
 
 ## 2. Authentication Strategy
 
-### Development Mode (Phase 0-2)
-For local development, use a simple header-based approach:
+### Production Mode (Phase 2+)
+
+Authentication is handled by [Clerk](https://clerk.com/). Protected endpoints require a valid Clerk session token.
+
+**Request Header:**
+```
+Authorization: Bearer <Clerk session JWT>
+```
+
+**Token Validation:**
+- Backend verifies JWT signature using Clerk JWKS
+- Validates: `exp`, `nbf`, `iss`, `aud` claims
+- Extracts `sub` claim as `clerk_user_id`
+- User record created/updated just-in-time on first request
+
+**Supported Auth Methods (via Clerk):**
+- Email/password
+- OAuth: Google, GitHub
+
+### Development Fallback
+
+For local development without Clerk, use header-based auth:
 ```
 X-Dev-User-Id: user-123
 ```
-Backend should create a mock user session when this header is present.
 
-### Production Path (Future)
-- JWT tokens in `Authorization: Bearer <token>` header
-- Refresh token rotation via HTTP-only cookies
-- OAuth 2.0 support for Google/GitHub providers
+**Precedence:** If `Authorization: Bearer` header is present and valid, Clerk auth is used. Otherwise, `X-Dev-User-Id` is checked (only if `AUTH_MODE=mixed|dev`).
+
+> ⚠️ **DEPRECATED**: The following endpoints from initial planning are NOT implemented. Use Clerk's hosted auth UI instead.
+> - `POST /auth/signup` — Use Clerk SignUp component
+> - `POST /auth/login` — Use Clerk SignIn component
+> - `POST /auth/logout` — Use Clerk signOut()
 
 ### Auth Endpoints (V1)
 
 | Endpoint | Status | Notes |
 |----------|--------|-------|
-| `POST /auth/signup` | TBD | Email/password registration |
-| `POST /auth/login` | TBD | Email/password login |
-| `POST /auth/logout` | TBD | Invalidate session |
-| `GET /auth/me` | TBD | Get current user |
+| `GET /auth/me` | ✅ | Get current authenticated user with profile + preferences |
+| `PATCH /auth/me/profile` | ✅ | Update profile fields (nickname, avatarUrl, bio) |
+| `PATCH /auth/me/preferences` | ✅ | Update preferences (language, timezone, AI toggle) |
 
-> **Note**: Auth UI exists in frontend but endpoints are mocked. Backend should implement these before production.
+#### `GET /auth/me` — Get Current User
+
+Returns the currently authenticated user's profile with preferences.
+
+**Response** `200 OK`
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "clerkUserId": "user_2abc123...",
+  "email": "user@example.com",
+  "displayName": "John Doe",
+  "nickname": "Johnny",
+  "avatarUrl": "https://...",
+  "bio": "A knowledge enthusiast",
+  "preferences": {
+    "defaultLanguage": "en",
+    "timezone": "America/New_York",
+    "aiSuggestionsEnabled": true
+  },
+  "plan": "free",
+  "createdAt": "2025-12-27T13:00:00.000Z",
+  "updatedAt": "2025-12-28T10:00:00.000Z"
+}
+```
+
+**Error Cases**
+| Status | Code | Description |
+|--------|------|-------------|
+| 401 | `UNAUTHORIZED` | No valid auth token |
+
+#### `PATCH /auth/me/profile` — Update Profile
+
+Update app-owned profile fields (nickname, avatarUrl, bio).
+
+**Request Body**
+```json
+{
+  "nickname": "Johnny",
+  "avatarUrl": "https://example.com/avatar.png",
+  "bio": "A knowledge enthusiast"
+}
+```
+
+All fields are optional. Send only fields to update.
+
+**Validation Rules**
+| Field | Constraint |
+|-------|------------|
+| `nickname` | 1-40 characters, trimmed |
+| `avatarUrl` | Must be http:// or https:// URL |
+| `bio` | Max 200 characters |
+
+**Response** `200 OK` — Same as GET /auth/me
+
+**Error Cases**
+| Status | Code | Description |
+|--------|------|-------------|
+| 401 | `UNAUTHORIZED` | No valid auth token |
+| 422 | `VALIDATION_ERROR` | Invalid field values |
+
+#### `PATCH /auth/me/preferences` — Update Preferences
+
+Update user preferences.
+
+**Request Body**
+```json
+{
+  "defaultLanguage": "zh",
+  "timezone": "Asia/Shanghai",
+  "aiSuggestionsEnabled": false
+}
+```
+
+All fields are optional. Send only fields to update.
+
+**Validation Rules**
+| Field | Constraint |
+|-------|------------|
+| `defaultLanguage` | `en` or `zh` |
+| `timezone` | IANA timezone string |
+| `aiSuggestionsEnabled` | Boolean |
+
+**Response** `200 OK` — Same as GET /auth/me
+
+**Error Cases**
+| Status | Code | Description |
+|--------|------|-------------|
+| 401 | `UNAUTHORIZED` | No valid auth token |
+| 422 | `VALIDATION_ERROR` | Invalid field values |
 
 ---
 
@@ -54,6 +162,9 @@ Backend should create a mock user session when this header is present.
 
 | Method | Path | Purpose | Auth |
 |--------|------|---------|------|
+| `GET` | `/auth/me` | Get current user with profile + preferences | ✓ |
+| `PATCH` | `/auth/me/profile` | Update profile (nickname, avatarUrl, bio) | ✓ |
+| `PATCH` | `/auth/me/preferences` | Update preferences (language, timezone, AI) | ✓ |
 | `POST` | `/items` | Create new item (triggers enrichment) | ✓ |
 | `GET` | `/items/pending` | List pending items | ✓ |
 | `GET` | `/items/:id` | Get single item | ✓ |

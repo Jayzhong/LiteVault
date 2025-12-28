@@ -133,6 +133,59 @@ class CreateItemUseCase:
 | Mappers | Entity ↔ Model conversion |
 | Enrichment Worker | Process outbox jobs |
 | AI Provider Adapters | OpenAI/Gemini API clients |
+| **Auth Adapter** | Clerk JWT verification |
+
+### 3.5 Auth Adapter (Clerk)
+
+Handles authentication via Clerk JWT tokens.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                       Auth Flow                                      │
+│                                                                      │
+│  Request ──▶ Extract Token ──▶ Verify JWT ──▶ Get/Create User ──▶   │
+│                   │                │               │                 │
+│                   ▼                ▼               ▼                 │
+│         Authorization header    Clerk JWKS    Just-in-time          │
+│         or X-Dev-User-Id        (cached)      user upsert           │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Auth Precedence:**
+
+```python
+def get_current_user(request: Request, settings: Settings, db: Session):
+    # 1. Check Authorization: Bearer header
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        claims = verify_clerk_jwt(token, settings)
+        return upsert_user_from_clerk(claims, db)
+    
+    # 2. Dev fallback (if AUTH_MODE allows)
+    if settings.auth_mode in ("mixed", "dev"):
+        dev_user_id = request.headers.get("X-Dev-User-Id")
+        if dev_user_id:
+            return get_or_create_dev_user(dev_user_id, db)
+    
+    # 3. No valid auth
+    raise UnauthorizedException("Missing or invalid authentication")
+```
+
+**Configuration:**
+
+| Env Variable | Description |
+|--------------|-------------|
+| `AUTH_MODE` | `clerk`, `mixed`, `dev` |
+| `CLERK_JWT_ISSUER` | Clerk instance URL |
+| `CLERK_JWKS_URL` | JWKS endpoint for key verification |
+
+**JWT Verification:**
+
+- Fetch JWKS from Clerk (cached with 1hr TTL)
+- Verify signature using RS256
+- Validate claims: `exp`, `nbf`, `iss`
+- Extract `sub` as `clerk_user_id`
 
 ---
 

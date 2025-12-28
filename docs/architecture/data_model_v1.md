@@ -68,29 +68,44 @@
 
 ### 3.1 `users`
 
-Stores user accounts.
+Stores user accounts. With Clerk authentication, users are identified by `clerk_user_id`.
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
-| `id` | UUID | No | gen_random_uuid() | Primary key |
-| `email` | VARCHAR(255) | No | - | Unique email address |
-| `password_hash` | VARCHAR(255) | Yes | - | Bcrypt hash (null for OAuth) |
-| `name` | VARCHAR(100) | No | - | Display name |
-| `avatar_url` | TEXT | Yes | - | Profile image URL |
+| `id` | UUID | No | gen_random_uuid() | Primary key (internal) |
+| `clerk_user_id` | VARCHAR(255) | Yes | - | Clerk user ID (`user_xxx`), null for dev users |
+| `email` | VARCHAR(255) | No | - | Email (from Clerk or generated for dev) |
+| `display_name` | VARCHAR(100) | No | - | Display name from Clerk |
+| `nickname` | VARCHAR(40) | Yes | - | App-owned nickname (overrides display_name) |
+| `avatar_url` | TEXT | Yes | - | Custom profile image URL |
+| `bio` | VARCHAR(200) | Yes | - | User bio |
+| `preferences_json` | JSONB | No | '{}' | User preferences (language, timezone, AI toggle) |
 | `plan` | VARCHAR(20) | No | 'free' | 'free' or 'pro' |
-| `created_at` | TIMESTAMPTZ | No | NOW() | Registration time |
+| `created_at` | TIMESTAMPTZ | No | NOW() | First authentication time |
 | `updated_at` | TIMESTAMPTZ | No | NOW() | Last update time |
+
+> ⚠️ **Note**: `password_hash` is NOT stored. Authentication is handled entirely by Clerk.
+
+**Preferences JSON Schema:**
+```json
+{
+  "defaultLanguage": "en",   // "en" | "zh"
+  "timezone": "UTC",         // IANA timezone string
+  "aiSuggestionsEnabled": true
+}
+```
 
 **Constraints:**
 ```sql
 PRIMARY KEY (id)
-UNIQUE (email)
+UNIQUE (clerk_user_id)
 CHECK (plan IN ('free', 'pro'))
 ```
 
 **Indexes:**
 ```sql
-CREATE UNIQUE INDEX idx_users_email ON users(LOWER(email));
+CREATE UNIQUE INDEX idx_users_clerk_user_id ON users(clerk_user_id);
+CREATE INDEX idx_users_email ON users(email) WHERE email IS NOT NULL;
 ```
 
 ---
