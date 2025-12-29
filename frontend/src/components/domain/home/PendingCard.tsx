@@ -5,15 +5,20 @@ import { microcopy } from '@/lib/microcopy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ItemCard } from '@/components/shared/ItemCard';
 import { InsightSummaryModal } from '@/components/shared/InsightSummaryModal';
 import { useAppContext } from '@/lib/store/AppContext';
 import type { Item } from '@/lib/types';
-import { Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
 interface PendingCardProps {
     item: Item;
 }
 
+/**
+ * Card component for pending items on the Home page.
+ * Handles ENRICHING, FAILED, and READY_TO_CONFIRM states.
+ */
 export function PendingCard({ item }: PendingCardProps) {
     const { retryItem } = useAppContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,77 +59,60 @@ export function PendingCard({ item }: PendingCardProps) {
 
     // Failed state
     if (item.status === 'FAILED') {
+        const handleRetry = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            retryItem(item.id);
+        };
+
+        const handleOpen = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            setIsModalOpen(true);
+        };
+
         return (
-            <div className="rounded-xl border border-destructive/50 bg-card p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <span className="font-medium">{microcopy.home.pending.status.failedTitle}</span>
+            <>
+                <div className="rounded-xl border border-destructive/50 bg-card p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <span className="font-medium">{microcopy.home.pending.status.failedTitle}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                                {item.rawText}
+                            </p>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                            {item.rawText}
-                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button size="sm" onClick={handleRetry}>
+                            {microcopy.home.pending.action.retry}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={handleOpen}>
+                            {microcopy.home.pending.action.open}
+                        </Button>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Button size="sm" onClick={() => retryItem(item.id)}>
-                        {microcopy.home.pending.action.retry}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setIsModalOpen(true)}>
-                        {microcopy.home.pending.action.open}
-                    </Button>
-                </div>
-            </div>
+
+                <InsightSummaryModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    item={item}
+                />
+            </>
         );
     }
 
-    // Ready to confirm state
+    // Ready to confirm state - use unified ItemCard
     return (
         <>
-            <button
+            <ItemCard
+                title={item.title || 'Untitled'}
+                summary={item.summary || item.rawText}
+                tags={item.tags}
+                statusBadge={microcopy.home.pending.status.ready}
+                timestamp={getTimeAgo(item.createdAt)}
                 onClick={() => setIsModalOpen(true)}
-                className="w-full rounded-xl border border-border bg-card p-4 text-left hover:border-emerald-300 hover:bg-card/80 transition-colors"
-            >
-                <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1 flex-1 min-w-0">
-                            <h3 className="font-medium text-foreground truncate">
-                                {item.title || 'Untitled'}
-                            </h3>
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                                {item.summary || item.rawText}
-                            </p>
-                        </div>
-                        <Badge
-                            variant="outline"
-                            className="shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200"
-                        >
-                            {microcopy.home.pending.status.ready}
-                        </Badge>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
-                            {getTimeAgo(item.createdAt)}
-                        </div>
-                        {item.tags.length > 0 && (
-                            <div className="flex items-center gap-1.5">
-                                {item.tags.slice(0, 3).map((tag) => (
-                                    <Badge key={tag} variant="secondary" className="text-xs">
-                                        {tag}
-                                    </Badge>
-                                ))}
-                                {item.tags.length > 3 && (
-                                    <span className="text-xs text-muted-foreground">
-                                        +{item.tags.length - 3}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </button>
+            />
 
             <InsightSummaryModal
                 isOpen={isModalOpen}

@@ -270,6 +270,20 @@ class ApiClient {
     }
 
     /**
+     * Update item fields (PATCH /items/:id without action).
+     * Used for editing title, summary, tags on archived items.
+     */
+    async updateItem(
+        id: string,
+        updates: { title?: string; summary?: string; tags?: string[] }
+    ): Promise<UpdateItemResponse> {
+        return this.fetch<UpdateItemResponse>(`/api/v1/items/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updates),
+        });
+    }
+
+    /**
      * Retry failed enrichment (POST /items/:id/retry)
      */
     async retryItem(id: string): Promise<RetryResponse> {

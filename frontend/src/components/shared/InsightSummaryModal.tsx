@@ -10,11 +10,12 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { TagPicker } from '@/components/shared/TagPicker';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useAppContext } from '@/lib/store/AppContext';
 import { toast } from 'sonner';
 import type { Item } from '@/lib/types';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface InsightSummaryModalProps {
     isOpen: boolean;
@@ -22,8 +23,12 @@ interface InsightSummaryModalProps {
     item: Item;
 }
 
+/**
+ * Modal for reviewing and confirming pending items.
+ * Shows AI-generated summary with editable tags.
+ */
 export function InsightSummaryModal({ isOpen, onClose, item }: InsightSummaryModalProps) {
-    const { confirmItem, discardItem } = useAppContext();
+    const { confirmItem, discardItem, tags: existingTags } = useAppContext();
     const [isConfirming, setIsConfirming] = useState(false);
     const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
     const [tags, setTags] = useState<string[]>(item.tags);
@@ -32,7 +37,7 @@ export function InsightSummaryModal({ isOpen, onClose, item }: InsightSummaryMod
         setIsConfirming(true);
         // Simulate API delay
         await new Promise((resolve) => setTimeout(resolve, 500));
-        confirmItem(item.id);
+        confirmItem(item.id, { tags });
         toast.success(microcopy.toast.savedToLibrary);
         onClose();
         setIsConfirming(false);
@@ -45,9 +50,8 @@ export function InsightSummaryModal({ isOpen, onClose, item }: InsightSummaryMod
         onClose();
     };
 
-    const removeTag = (tagToRemove: string) => {
-        setTags(tags.filter((t) => t !== tagToRemove));
-    };
+    // Get available tags for the picker
+    const availableTags = existingTags?.map((t) => t.name) || [];
 
     return (
         <>
@@ -72,30 +76,13 @@ export function InsightSummaryModal({ isOpen, onClose, item }: InsightSummaryMod
                             </p>
                         </div>
 
-                        {/* Tags */}
-                        <div className="flex flex-wrap gap-2">
-                            {tags.map((tag) => (
-                                <Badge
-                                    key={tag}
-                                    variant="secondary"
-                                    className="gap-1.5 pr-1.5"
-                                >
-                                    {tag}
-                                    <button
-                                        onClick={() => removeTag(tag)}
-                                        className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </Badge>
-                            ))}
-                            <Badge
-                                variant="outline"
-                                className="cursor-pointer hover:bg-muted"
-                            >
-                                {microcopy.modal.insight.tags.add}
-                            </Badge>
-                        </div>
+                        {/* Tags with TagPicker */}
+                        <TagPicker
+                            selectedTags={tags}
+                            availableTags={availableTags}
+                            onChange={setTags}
+                            allowCreate={true}
+                        />
                     </div>
 
                     {/* Actions */}

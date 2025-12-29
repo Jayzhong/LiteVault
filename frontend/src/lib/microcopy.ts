@@ -89,6 +89,30 @@ export const microcopy = {
                 tagFailed: "Couldn't update tags. Please try again.",
             },
         },
+        // Item Detail Modal (Library/Search)
+        detail: {
+            action: {
+                edit: 'Edit',
+                save: 'Save',
+                cancel: 'Cancel',
+                saving: 'Saving…',
+            },
+            edit: {
+                titleLabel: 'Title',
+                summaryLabel: 'Summary',
+                tagsLabel: 'Tags',
+            },
+            error: {
+                saveFailed: "Couldn't save changes. Please try again.",
+            },
+        },
+    },
+
+    // TagPicker
+    tagPicker: {
+        placeholder: 'Search tags…',
+        noResults: 'No tags found',
+        createNew: 'Create "{tag}"',
     },
 
     // Discard Dialog

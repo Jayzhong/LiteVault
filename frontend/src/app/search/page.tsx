@@ -5,16 +5,36 @@ import { useRouter } from 'next/navigation';
 import { microcopy } from '@/lib/microcopy';
 import { InputBar } from '@/components/shared/InputBar';
 import { SearchEmptyState } from '@/components/domain/search/SearchEmptyState';
+import { ItemCard } from '@/components/shared/ItemCard';
+import { ItemDetailModal } from '@/components/shared/ItemDetailModal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAccountProfile } from '@/lib/hooks/useAccountProfile';
 import { apiClient, isUsingRealApi, SearchResponse, SearchResultItem } from '@/lib/api/client';
-import { cn } from '@/lib/utils';
+import type { Item } from '@/lib/types';
 
 type SearchState = 'idle' | 'searching' | 'results' | 'no_results' | 'error';
 type SearchMode = 'tag_only' | 'combined';
 
 // LocalStorage key for draft search query
 const SEARCH_DRAFT_KEY = 'litevault_search_draft';
+
+/**
+ * Convert SearchResultItem to Item for modal display.
+ */
+function toItem(result: SearchResultItem): Item {
+    return {
+        id: result.id,
+        rawText: result.summary || '', // Use summary as rawText for search results
+        title: result.title,
+        summary: result.summary,
+        tags: result.tags,
+        status: 'ARCHIVED', // Search results are always archived items
+        sourceType: result.sourceType as 'NOTE' | 'ARTICLE' | undefined,
+        createdAt: new Date(result.createdAt),
+        updatedAt: new Date(result.createdAt), // Use createdAt as fallback
+        confirmedAt: result.confirmedAt ? new Date(result.confirmedAt) : null,
+    };
+}
 
 export default function SearchPage() {
     const { isSignedIn } = useAccountProfile();
@@ -25,6 +45,9 @@ export default function SearchPage() {
     const [results, setResults] = useState<SearchResultItem[]>([]);
     const [resultCount, setResultCount] = useState(0);
     const [errorMessage, setErrorMessage] = useState('');
+
+    // Modal state
+    const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
     const handleSearch = async (searchQuery: string) => {
         const trimmed = searchQuery.trim();
@@ -103,6 +126,26 @@ export default function SearchPage() {
         }
     };
 
+    const handleCardClick = (result: SearchResultItem) => {
+        setSelectedItem(toItem(result));
+    };
+
+    const handleItemUpdate = (updatedItem: Item) => {
+        // Update the result in the list
+        setResults((prev) =>
+            prev.map((r) =>
+                r.id === updatedItem.id
+                    ? {
+                        ...r,
+                        title: updatedItem.title,
+                        summary: updatedItem.summary,
+                        tags: updatedItem.tags,
+                    }
+                    : r
+            )
+        );
+    };
+
     // Get saved draft for defaultValue
     const getSavedDraft = (): string => {
         if (typeof window === 'undefined') return '';
@@ -154,7 +197,7 @@ export default function SearchPage() {
                 </div>
             )}
 
-            {/* Results - V1: Simple item list (no synthesized answer) */}
+            {/* Results - Using unified ItemCard */}
             {searchState === 'results' && results.length > 0 && (
                 <div className="space-y-4">
                     {/* Mode indicator */}
@@ -165,43 +208,17 @@ export default function SearchPage() {
                         {' '}({resultCount} items)
                     </p>
 
-                    {/* Results list */}
-                    {results.map((item) => (
-                        <div
-                            key={item.id}
-                            className={cn(
-                                "rounded-xl border border-border bg-card p-4 space-y-2",
-                                "hover:border-emerald-500/50 cursor-pointer transition-colors"
-                            )}
-                        >
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-medium text-foreground">
-                                    {item.title || 'Untitled'}
-                                </h3>
-                                {item.sourceType && (
-                                    <span className="text-xs text-muted-foreground uppercase">
-                                        {item.sourceType}
-                                    </span>
-                                )}
-                            </div>
-                            {item.summary && (
-                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                    {item.summary}
-                                </p>
-                            )}
-                            {item.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                    {item.tags.map((tag) => (
-                                        <span
-                                            key={tag}
-                                            className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/10 text-emerald-600"
-                                        >
-                                            {tag}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                    {/* Results list with clickable cards */}
+                    {results.map((result) => (
+                        <ItemCard
+                            key={result.id}
+                            title={result.title || 'Untitled'}
+                            summary={result.summary || undefined}
+                            tags={result.tags}
+                            sourceType={result.sourceType as 'NOTE' | 'ARTICLE' | undefined}
+                            showIcon={true}
+                            onClick={() => handleCardClick(result)}
+                        />
                     ))}
                 </div>
             )}
@@ -242,6 +259,16 @@ export default function SearchPage() {
                         {microcopy.search.error.action}
                     </button>
                 </div>
+            )}
+
+            {/* Item Detail Modal */}
+            {selectedItem && (
+                <ItemDetailModal
+                    isOpen={!!selectedItem}
+                    onClose={() => setSelectedItem(null)}
+                    item={selectedItem}
+                    onUpdate={handleItemUpdate}
+                />
             )}
         </div>
     );

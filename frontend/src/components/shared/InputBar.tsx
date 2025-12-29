@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,13 @@ export function InputBar({
     disabled = false,
 }: InputBarProps) {
     const [text, setText] = useState(defaultValue);
+
+    // Sync text with defaultValue when it changes (e.g., after hydration)
+    useEffect(() => {
+        if (defaultValue && !text) {
+            setText(defaultValue);
+        }
+    }, [defaultValue, text]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
