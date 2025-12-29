@@ -251,34 +251,48 @@ CREATE INDEX idx_idempotency_expires ON idempotency_keys(expires_at);
 
 ### 3.6 `enrichment_outbox`
 
-Transactional outbox for async enrichment jobs.
+Transactional outbox for async enrichment jobs. Supports LISTEN/NOTIFY wakeups with fallback polling.
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
 | `id` | UUID | No | gen_random_uuid() | Primary key |
 | `item_id` | UUID | No | - | Item to enrich |
-| `status` | VARCHAR(20) | No | 'PENDING' | 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED' |
+| `job_type` | VARCHAR(50) | No | 'enrichment' | Job type (extensible) |
+| `status` | VARCHAR(20) | No | 'PENDING' | PENDING/IN_PROGRESS/DONE/FAILED/DEAD |
 | `attempt_count` | INT | No | 0 | Retry attempts |
+| `run_at` | TIMESTAMPTZ | No | NOW() | When job becomes runnable (for backoff) |
 | `claimed_at` | TIMESTAMPTZ | Yes | - | When worker claimed job |
-| `last_error` | TEXT | Yes | - | Error message from last attempt |
+| `locked_by` | VARCHAR(100) | Yes | - | Worker ID holding claim |
+| `lease_expires_at` | TIMESTAMPTZ | Yes | - | Claim expiry (for crash recovery) |
+| `last_error_code` | VARCHAR(50) | Yes | - | Error code from last attempt |
+| `last_error_message` | TEXT | Yes | - | Error message from last attempt |
 | `created_at` | TIMESTAMPTZ | No | NOW() | Job creation time |
 
 **Constraints:**
 ```sql
 PRIMARY KEY (id)
 FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
-CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'))
+CHECK (status IN ('PENDING', 'IN_PROGRESS', 'DONE', 'FAILED', 'DEAD'))
 ```
 
 **Indexes:**
 ```sql
--- For worker polling (pending jobs, not yet claimed)
-CREATE INDEX idx_outbox_pending ON enrichment_outbox(created_at)
-    WHERE status = 'PENDING' AND claimed_at IS NULL;
+-- For worker claiming (runnable jobs where run_at is due)
+CREATE INDEX idx_outbox_runnable ON enrichment_outbox(run_at, created_at)
+    WHERE status = 'PENDING';
 
--- For stale job detection
-CREATE INDEX idx_outbox_claimed ON enrichment_outbox(claimed_at)
-    WHERE status = 'PROCESSING';
+-- For expired lease reclaim (crashed workers)
+CREATE INDEX idx_outbox_expired_lease ON enrichment_outbox(lease_expires_at)
+    WHERE status = 'IN_PROGRESS' AND lease_expires_at IS NOT NULL;
+```
+
+**Job Dispatch Pattern:**
+```
+1. Producer: INSERT job + NOTIFY litevault_jobs (after commit)
+2. Consumer: LISTEN litevault_jobs → drain() on wakeup
+3. Fallback: Poll every 30s + startup scan
+4. Claiming: FOR UPDATE SKIP LOCKED + lease expiry
+5. Idempotency: Check item.status before write
 ```
 
 ---

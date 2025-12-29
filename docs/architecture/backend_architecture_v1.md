@@ -236,31 +236,76 @@ def get_current_user(request: Request, settings: Settings, db: Session):
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Outbox Table Schema
+### Job Dispatcher Architecture (LISTEN/NOTIFY + Fallback)
 
-```sql
-CREATE TABLE enrichment_outbox (
-    id UUID PRIMARY KEY,
-    item_id UUID NOT NULL REFERENCES items(id),
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    attempt_count INT NOT NULL DEFAULT 0,
-    claimed_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    last_error TEXT
-);
-
-CREATE INDEX idx_outbox_pending ON enrichment_outbox(status, claimed_at) 
-    WHERE status = 'PENDING' AND claimed_at IS NULL;
 ```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Job Dispatcher                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  PRODUCER (API Handler / Use Case)                                  │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │  1. BEGIN TRANSACTION                                          │ │
+│  │  2. INSERT item (status=ENRICHING)                             │ │
+│  │  3. INSERT enrichment_outbox (status=PENDING)                  │ │
+│  │  4. COMMIT                                                     │ │
+│  │  5. NOTIFY litevault_jobs  ← low-latency wakeup               │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                            │                                         │
+│                            ▼                                         │
+│  CONSUMER (JobListener)                                             │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │  LISTEN litevault_jobs (dedicated asyncpg connection)          │ │
+│  │       │                                                        │ │
+│  │       ├─── on NOTIFY → trigger drain()                         │ │
+│  │       │                                                        │ │
+│  │  Fallback poll every 30s → trigger drain()                     │ │
+│  │       │                                                        │ │
+│  │  Startup scan → drain(batch_size=100)                          │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                            │                                         │
+│                            ▼                                         │
+│  CLAIMING (Lease-Based)                                             │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │  SELECT ... WHERE status='PENDING' AND run_at <= NOW()         │ │
+│  │         ORDER BY created_at LIMIT 1                            │ │
+│  │         FOR UPDATE SKIP LOCKED                                 │ │
+│  │  SET status=IN_PROGRESS, locked_by=worker, lease_expires_at    │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                            │                                         │
+│                            ▼                                         │
+│  PROCESSING + IDEMPOTENCY                                           │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │  1. Get item with row lock (FOR UPDATE)                        │ │
+│  │  2. Check item.status == ENRICHING (idempotency gate)          │ │
+│  │  3. Call AI provider                                           │ │
+│  │  4. item.mark_enriched() → READY_TO_CONFIRM                    │ │
+│  │  5. Delete outbox job                                          │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+│  NOTE: NOTIFY is best-effort optimization. Outbox is durable truth. │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Design Points
+
+| Aspect | Decision |
+|--------|----------|
+| Notification | `NOTIFY litevault_jobs` on commit (poke, not data) |
+| Claiming | `FOR UPDATE SKIP LOCKED` + 5-min lease |
+| Fallback | Poll every 30s + startup scan |
+| Idempotency | Check `item.status == ENRICHING` before write |
+| Retry | Exponential backoff: 0s, 30s, 5min (max 3 attempts) |
+| Dead letter | Status = 'DEAD' after max retries |
 
 ### Limitations (Acknowledged)
 
 | Limitation | Impact | Mitigation |
 |------------|--------|------------|
-| Single instance only | No horizontal scaling | Acceptable for dev/small prod |
-| Jobs lost on hard crash | Items stuck in ENRICHING | Stale job cleanup cron |
+| Single listener connection | pgbouncer incompatible | Use direct connection for LISTEN |
+| NOTIFY not durable | Missed on network/crash | Fallback polling catches up |
 | No priority queue | All jobs equal priority | V1 acceptable |
-| No dead-letter queue | Failed jobs need manual handling | Admin endpoint for retry-all |
+| No dead-letter table | Dead jobs in same table | Filter by status='DEAD' |
 
 ---
 

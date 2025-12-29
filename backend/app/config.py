@@ -39,8 +39,16 @@ class Settings(BaseSettings):
     clerk_audience: str | None = None    # Optional audience claim validation
 
     # Enrichment Worker
-    enrichment_poll_interval_secs: int = 2
+    enrichment_poll_interval_secs: int = 2  # Legacy: 2s (will raise to 30s with NOTIFY)
     enrichment_max_retries: int = 3
+
+    # Job Dispatch (LISTEN/NOTIFY)
+    job_notify_enabled: bool = True  # Enable NOTIFY on job creation
+    job_notify_channel: str = "litevault_jobs"  # NOTIFY channel name
+    job_poll_interval_secs: int = 30  # Fallback poll interval (when NOTIFY enabled)
+    job_lease_seconds: int = 300  # 5 minutes lease
+    job_backoff_seconds: list[int] = [0, 30, 300]  # Backoff per attempt: 0s, 30s, 5min
+    job_worker_id: str = ""  # Auto-generated if empty
 
     # LLM Settings
     llm_provider: LLMProvider = LLMProvider.STUB  # stub for dev, litellm for production

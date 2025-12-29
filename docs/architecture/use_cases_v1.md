@@ -834,6 +834,95 @@ class MergeTagsOutput:
 
 ---
 
+## 6. Job Dispatch Module
+
+### 6.1 EnqueueJob
+
+**Trigger:** CreateItemUseCase, RetryEnrichmentUseCase
+
+**Use Case:** Internal (part of item creation flow)
+
+Enqueues an enrichment job for async processing.
+
+#### Flow
+
+```
+1. Within active transaction:
+   a. INSERT INTO enrichment_outbox (item_id, job_type='enrichment', status='PENDING')
+2. After transaction commit:
+   a. NOTIFY litevault_jobs (fire-and-forget)
+3. Return immediately (async processing)
+```
+
+#### Notes
+- NOTIFY is best-effort; missed notifications are recovered by fallback polling
+- Job ID and item_id provide correlation for tracing
+
+---
+
+### 6.2 ProcessJob
+
+**Trigger:** NOTIFY wakeup, fallback poll, or startup scan
+
+**Use Case:** Internal (worker background loop)
+
+Claims and processes the next pending job.
+
+#### Flow
+
+```
+1. Claim next runnable job:
+   SELECT ... FROM enrichment_outbox
+   WHERE status='PENDING' AND run_at <= NOW()
+   ORDER BY created_at LIMIT 1
+   FOR UPDATE SKIP LOCKED
+   SET status='IN_PROGRESS', locked_by=worker_id, lease_expires_at=NOW() + 5min
+
+2. Load item with row lock:
+   SELECT ... FROM items WHERE id=job.item_id FOR UPDATE
+
+3. Idempotency check:
+   IF item.status != 'ENRICHING':
+     DELETE job, return (already processed)
+
+4. Call AI provider:
+   result = await ai_provider.enrich_item(item.raw_text)
+
+5. Update item:
+   item.mark_enriched(title, summary, tags, source_type)
+   → status = 'READY_TO_CONFIRM'
+
+6. Delete job:
+   DELETE FROM enrichment_outbox WHERE id=job.id
+
+7. Commit transaction
+```
+
+#### Failure Handling
+
+```
+ON EnrichmentError or Exception:
+  IF job.attempt_count >= MAX_RETRIES (3):
+    item.mark_failed() → status = 'FAILED'
+    job.status = 'DEAD'
+  ELSE:
+    job.attempt_count += 1
+    job.run_at = NOW() + backoff(attempt)  # 0s, 30s, 5min
+    job.status = 'PENDING'
+    job.last_error_code = error_code
+    job.last_error_message = sanitized_message
+```
+
+#### State Transitions
+
+- Job: `PENDING → IN_PROGRESS → DONE` (success)
+- Job: `PENDING → IN_PROGRESS → PENDING` (retry)
+- Job: `PENDING → IN_PROGRESS → DEAD` (max retries)
+- Item: `ENRICHING → READY_TO_CONFIRM` (success)
+- Item: `ENRICHING → FAILED` (max retries)
+
+---
+
 ## 7. Summary: Error Code Coverage
 
 | Error Code | Used By |
