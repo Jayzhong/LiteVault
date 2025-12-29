@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.item import Item
-from app.domain.value_objects import ItemStatus, SourceType
+from app.domain.value_objects import ItemStatus, SourceType, EnrichmentMode
 from app.domain.repositories.item_repository import ItemRepository
 from app.infrastructure.persistence.models.item_model import ItemModel
 
@@ -25,6 +25,7 @@ class SQLAlchemyItemRepository(ItemRepository):
             summary=item.summary,
             status=item.status.value,
             source_type=item.source_type.value if item.source_type else None,
+            enrichment_mode=item.enrichment_mode.value,
             tags=item.tags,
             created_at=item.created_at,
             updated_at=item.updated_at,
@@ -123,6 +124,7 @@ class SQLAlchemyItemRepository(ItemRepository):
             summary=model.summary,
             status=ItemStatus(model.status),
             source_type=SourceType(model.source_type) if model.source_type else None,
+            enrichment_mode=EnrichmentMode(model.enrichment_mode) if model.enrichment_mode else EnrichmentMode.AI,
             tags=list(model.tags) if model.tags else [],
             created_at=model.created_at,
             updated_at=model.updated_at,

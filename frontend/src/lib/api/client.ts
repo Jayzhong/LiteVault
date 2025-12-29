@@ -208,8 +208,11 @@ class ApiClient {
 
     /**
      * Create a new item (POST /items)
+     * @param rawText - The text content
+     * @param idempotencyKey - Optional idempotency key
+     * @param enrich - If true (default), triggers AI enrichment. If false, creates READY_TO_CONFIRM immediately.
      */
-    async createItem(rawText: string, idempotencyKey?: string): Promise<Item> {
+    async createItem(rawText: string, idempotencyKey?: string, enrich: boolean = true): Promise<Item> {
         const headers: HeadersInit = {};
         if (idempotencyKey) {
             headers['Idempotency-Key'] = idempotencyKey;
@@ -218,7 +221,7 @@ class ApiClient {
         const response = await this.fetch<CreateItemResponse>('/api/v1/items', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ rawText }),
+            body: JSON.stringify({ rawText, enrich }),
         });
 
         return parseApiItem(response);

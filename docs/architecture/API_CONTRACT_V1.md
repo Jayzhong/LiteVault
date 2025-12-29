@@ -219,16 +219,22 @@ All fields are optional. Send only fields to update.
 
 #### `POST /items` — Create Item
 
-Creates a new item and triggers async AI enrichment.
+Creates a new item. Optionally triggers async AI enrichment.
 
 **Idempotency**: Use `Idempotency-Key` header to prevent duplicates.
 
 **Request**
 ```json
 {
-  "rawText": "string (required, max 10000 chars)"
+  "rawText": "string (required, max 10000 chars)",
+  "enrich": true
 }
 ```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `rawText` | string | Yes | - | Captured text content |
+| `enrich` | boolean | No | `true` | If true, triggers AI enrichment (ENRICHING). If false, creates READY_TO_CONFIRM immediately. |
 
 **Headers**
 ```
@@ -236,6 +242,8 @@ Idempotency-Key: <uuid> (recommended)
 ```
 
 **Response** `201 Created`
+
+When `enrich=true` (default):
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -245,11 +253,31 @@ Idempotency-Key: <uuid> (recommended)
   "tags": [],
   "status": "ENRICHING",
   "sourceType": null,
+  "enrichmentMode": "AI",
   "createdAt": "2025-12-27T13:00:00.000Z",
   "updatedAt": "2025-12-27T13:00:00.000Z",
   "confirmedAt": null
 }
 ```
+
+When `enrich=false`:
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "rawText": "Meeting notes from the product review...",
+  "title": "Meeting notes from the product review",
+  "summary": null,
+  "tags": [],
+  "status": "READY_TO_CONFIRM",
+  "sourceType": "NOTE",
+  "enrichmentMode": "MANUAL",
+  "createdAt": "2025-12-27T13:00:00.000Z",
+  "updatedAt": "2025-12-27T13:00:00.000Z",
+  "confirmedAt": null
+}
+```
+
+> **Note**: When `enrich=false`, title is auto-generated from the first 60 characters of the first non-empty line. No AI processing occurs.
 
 **Error Cases**
 | Status | Code | Description |

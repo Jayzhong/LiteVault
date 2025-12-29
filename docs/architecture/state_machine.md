@@ -26,7 +26,8 @@ stateDiagram-v2
     [*] --> DRAFT: User starts typing
     
     DRAFT --> SAVING: Click "Save"
-    SAVING --> ENRICHING: POST /items success
+    SAVING --> ENRICHING: POST /items (enrich=true)
+    SAVING --> READY_TO_CONFIRM: POST /items (enrich=false)
     SAVING --> DRAFT: POST /items failed (network)
     
     ENRICHING --> READY_TO_CONFIRM: Enrichment job success

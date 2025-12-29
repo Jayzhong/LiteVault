@@ -31,6 +31,7 @@ class ItemModel(Base):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ENRICHING")
     source_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    enrichment_mode: Mapped[str] = mapped_column(String(10), nullable=False, default="AI")
     # Store tags as array for simplicity in V1 (no separate item_tags table yet)
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=[])
     created_at: Mapped[datetime] = mapped_column(

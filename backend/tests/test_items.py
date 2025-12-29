@@ -80,6 +80,62 @@ async def test_create_item_validation_empty_text(
 
 
 @pytest.mark.asyncio
+async def test_create_item_manual_flow_enrich_false(
+    client: AsyncClient, dev_user_headers: dict
+) -> None:
+    """Test creating item with enrich=false creates READY_TO_CONFIRM immediately."""
+    response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "My manual note content", "enrich": False},
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "READY_TO_CONFIRM"
+    assert data["enrichmentMode"] == "MANUAL"
+    # Title should be generated from first line
+    assert data["title"] == "My manual note content"
+    assert data["summary"] is None
+    assert data["sourceType"] == "NOTE"
+
+
+@pytest.mark.asyncio
+async def test_create_item_manual_flow_title_truncation(
+    client: AsyncClient, dev_user_headers: dict
+) -> None:
+    """Test manual flow truncates long first line to 60 chars."""
+    long_text = "This is a very long first line that exceeds sixty characters and should be truncated\nSecond line"
+    response = await client.post(
+        "/api/v1/items",
+        json={"rawText": long_text, "enrich": False},
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "READY_TO_CONFIRM"
+    # Title should be truncated with ellipsis
+    assert len(data["title"]) <= 60
+
+
+@pytest.mark.asyncio
+async def test_create_item_ai_flow_enrich_true(
+    client: AsyncClient, dev_user_headers: dict
+) -> None:
+    """Test creating item with enrich=true (default) creates ENRICHING."""
+    response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "My AI enriched note", "enrich": True},
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "ENRICHING"
+    assert data["enrichmentMode"] == "AI"
+    assert data["title"] is None
+    assert data["summary"] is None
+
+
+@pytest.mark.asyncio
 async def test_get_pending_items(
     client: AsyncClient, dev_user_headers: dict
 ) -> None:

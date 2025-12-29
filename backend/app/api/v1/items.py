@@ -62,6 +62,7 @@ async def create_item(
             user_id=current_user.id,
             raw_text=request.rawText,
             idempotency_key=idempotency_key,
+            enrich=request.enrich,
         )
     )
     return ItemResponse(
@@ -72,6 +73,7 @@ async def create_item(
         tags=output.tags,
         status=output.status,
         sourceType=output.source_type,
+        enrichmentMode=output.enrichment_mode,
         createdAt=output.created_at,
         updatedAt=output.updated_at,
         confirmedAt=output.confirmed_at,

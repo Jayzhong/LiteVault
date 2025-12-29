@@ -46,6 +46,11 @@ export const microcopy = {
             placeholder: 'Capture your thought...',
             action: 'Save',
             disabledHint: 'Write something to save.',
+            toggle: {
+                label: 'AI suggestions',
+                onHint: 'AI will suggest title and tags',
+                offHint: 'Save without AI',
+            },
         },
         pending: {
             title: 'PENDING REVIEW',
@@ -220,7 +225,7 @@ export const microcopy = {
         tags: {
             title: 'Tag Management',
             summary: 'You currently have {n} active tags in your library.',
-            manage: 'Manage tags →',
+            manage: 'Manage tags',
         },
     },
 

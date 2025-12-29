@@ -7,6 +7,9 @@ import { PendingReviewSection } from '@/components/domain/home/PendingReviewSect
 import { useAppContext } from '@/lib/store/AppContext';
 import { useAccountProfile } from '@/lib/hooks/useAccountProfile';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -14,7 +17,7 @@ import { toast } from 'sonner';
 const DRAFT_KEY = 'litevault_home_draft';
 
 export default function HomePage() {
-  const { addPendingItem, error, clearError } = useAppContext();
+  const { addPendingItem, aiSuggestionsEnabled, setAiSuggestionsEnabled, error, clearError } = useAppContext();
   const { profile, isLoading, isSignedIn } = useAccountProfile();
   const router = useRouter();
 
@@ -56,7 +59,8 @@ export default function HomePage() {
 
     // Signed in: proceed with normal behavior
     try {
-      await addPendingItem(text);
+      // Pass the current toggle state to addPendingItem
+      await addPendingItem(text, aiSuggestionsEnabled);
 
       // Clear any saved draft after successful save
       try {
@@ -66,7 +70,12 @@ export default function HomePage() {
         // Silently fail
       }
 
-      toast.success(microcopy.toast.savedGenerating);
+      // Show appropriate toast based on mode
+      if (aiSuggestionsEnabled) {
+        toast.success(microcopy.toast.savedGenerating);
+      } else {
+        toast.success('Saved. Ready to review.');
+      }
     } catch {
       // Error is handled by AppContext and shown via toast
     }
@@ -92,7 +101,7 @@ export default function HomePage() {
       </div>
 
       {/* Capture Input - only renders with defaultValue after mount */}
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-3">
         <InputBar
           mode="capture"
           placeholder={microcopy.home.capture.placeholder}
@@ -100,6 +109,27 @@ export default function HomePage() {
           onSubmit={handleSave}
           defaultValue={hasMounted ? draft : ''}
         />
+
+        {/* AI Toggle - below input area */}
+        <div className="flex items-center justify-end gap-2">
+          <Sparkles className={`h-4 w-4 ${aiSuggestionsEnabled ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+          <Switch
+            id="ai-toggle"
+            checked={aiSuggestionsEnabled}
+            onCheckedChange={setAiSuggestionsEnabled}
+          />
+          <Label
+            htmlFor="ai-toggle"
+            className="text-sm text-muted-foreground cursor-pointer select-none"
+          >
+            {microcopy.home.capture.toggle.label}
+          </Label>
+          <span className="text-xs text-muted-foreground/70">
+            {aiSuggestionsEnabled
+              ? microcopy.home.capture.toggle.onHint
+              : microcopy.home.capture.toggle.offHint}
+          </span>
+        </div>
       </div>
 
       {/* Pending Review Section - only show when signed in */}

@@ -8,6 +8,7 @@ class CreateItemRequest(BaseModel):
     """Request body for POST /items."""
 
     rawText: str = Field(..., min_length=1, max_length=10000)
+    enrich: bool = True  # If False, skip AI enrichment
 
 
 class ItemResponse(BaseModel):
@@ -20,6 +21,7 @@ class ItemResponse(BaseModel):
     tags: list[str]
     status: str
     sourceType: str | None
+    enrichmentMode: str | None = None  # 'AI' or 'MANUAL'
     createdAt: datetime
     updatedAt: datetime
     confirmedAt: datetime | None

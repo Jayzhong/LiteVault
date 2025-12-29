@@ -16,7 +16,7 @@ import { apiClient, isUsingRealApi, generateIdempotencyKey } from '@/lib/api';
 interface AppContextType {
     // Pending items
     pendingItems: Item[];
-    addPendingItem: (rawText: string) => Promise<void>;
+    addPendingItem: (rawText: string, enrich?: boolean) => Promise<void>;
     confirmItem: (id: string, edits?: { title?: string; summary?: string; tags?: string[] }) => Promise<void>;
     discardItem: (id: string) => Promise<void>;
     retryItem: (id: string) => Promise<void>;
@@ -118,14 +118,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, [fetchPendingItems]);
 
     // Add a new pending item
-    const addPendingItem = useCallback(async (rawText: string) => {
+    const addPendingItem = useCallback(async (rawText: string, enrich?: boolean) => {
+        // Use passed enrich value, or fall back to aiSuggestionsEnabled preference
+        const shouldEnrich = enrich ?? aiSuggestionsEnabled;
+
         if (isUsingRealApi) {
             // Real API mode
             try {
                 setIsLoading(true);
                 clearError();
                 const idempotencyKey = generateIdempotencyKey();
-                const item = await apiClient.createItem(rawText, idempotencyKey);
+                const item = await apiClient.createItem(rawText, idempotencyKey, shouldEnrich);
                 setPendingItems((prev) => [item, ...prev]);
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'Failed to save item';
@@ -168,7 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 );
             }, 2000);
         }
-    }, [clearError]);
+    }, [clearError, aiSuggestionsEnabled]);
 
     // Confirm an item (move to library)
     const confirmItem = useCallback(

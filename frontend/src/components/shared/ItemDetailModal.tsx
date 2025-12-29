@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { TagPicker } from '@/components/shared/TagPicker';
 import { apiClient, isUsingRealApi } from '@/lib/api/client';
+import { useAppContext } from '@/lib/store/AppContext';
 import { toast } from 'sonner';
 import type { Item } from '@/lib/types';
 import { FileText, Link as LinkIcon, Pencil } from 'lucide-react';
@@ -47,6 +48,10 @@ export function ItemDetailModal({
     const [editTitle, setEditTitle] = useState(item.title || '');
     const [editSummary, setEditSummary] = useState(item.summary || '');
     const [editTags, setEditTags] = useState<string[]>(item.tags);
+
+    // Get available tags from AppContext
+    const { tags: existingTags } = useAppContext();
+    const availableTags = existingTags?.map((t) => t.name) || [];
 
     const Icon = item.sourceType === 'ARTICLE' ? LinkIcon : FileText;
     const typeLabel = item.sourceType === 'ARTICLE'
@@ -185,6 +190,7 @@ export function ItemDetailModal({
                                 <Label>{microcopy.modal.detail.edit.tagsLabel}</Label>
                                 <TagPicker
                                     selectedTags={editTags}
+                                    availableTags={availableTags}
                                     onChange={setEditTags}
                                     allowCreate={true}
                                 />

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.domain.entities.item import Item
-from app.domain.value_objects import ItemStatus
+from app.domain.value_objects import ItemStatus, SourceType, EnrichmentMode
 from app.domain.exceptions import ValidationException
 from app.domain.repositories.item_repository import ItemRepository
 from app.domain.repositories.idempotency_repository import IdempotencyRepository
@@ -16,6 +16,7 @@ class CreateItemUseCase:
     """Use case for creating a new item."""
 
     MAX_RAW_TEXT_LENGTH = 10000
+    MAX_TITLE_LENGTH = 60
 
     def __init__(
         self,
@@ -58,20 +59,41 @@ class CreateItemUseCase:
                 },
             )
 
-        # Create item
+        # Create item based on enrich flag
         now = datetime.now(timezone.utc)
-        item = Item(
-            id=str(uuid4()),
-            user_id=input.user_id,
-            raw_text=input.raw_text.strip(),
-            status=ItemStatus.ENRICHING,
-            created_at=now,
-            updated_at=now,
-        )
-        await self.item_repo.create(item)
+        raw_text = input.raw_text.strip()
 
-        # Queue enrichment job
-        await self.outbox_repo.create(item.id)
+        if input.enrich:
+            # AI enrichment flow: ENRICHING status, queue job
+            item = Item(
+                id=str(uuid4()),
+                user_id=input.user_id,
+                raw_text=raw_text,
+                status=ItemStatus.ENRICHING,
+                enrichment_mode=EnrichmentMode.AI,
+                created_at=now,
+                updated_at=now,
+            )
+            await self.item_repo.create(item)
+
+            # Queue enrichment job
+            await self.outbox_repo.create(item.id)
+        else:
+            # Manual flow: READY_TO_CONFIRM immediately, no job
+            title = self._generate_manual_title(raw_text)
+            item = Item(
+                id=str(uuid4()),
+                user_id=input.user_id,
+                raw_text=raw_text,
+                title=title,
+                status=ItemStatus.READY_TO_CONFIRM,
+                source_type=SourceType.NOTE,
+                enrichment_mode=EnrichmentMode.MANUAL,
+                created_at=now,
+                updated_at=now,
+            )
+            await self.item_repo.create(item)
+            # No outbox job created for manual flow
 
         # Save idempotency key
         if input.idempotency_key:
@@ -83,6 +105,20 @@ class CreateItemUseCase:
 
         return self._to_output(item)
 
+    def _generate_manual_title(self, raw_text: str) -> str:
+        """Generate title from first non-empty line, max 60 chars."""
+        lines = raw_text.split('\n')
+        for line in lines:
+            stripped = line.strip()
+            if stripped:
+                if len(stripped) <= self.MAX_TITLE_LENGTH:
+                    return stripped
+                return stripped[:self.MAX_TITLE_LENGTH - 3] + "..."
+        # Fallback to first 60 chars of raw text
+        if len(raw_text) <= self.MAX_TITLE_LENGTH:
+            return raw_text
+        return raw_text[:self.MAX_TITLE_LENGTH - 3] + "..."
+
     def _to_output(self, item: Item) -> CreateItemOutput:
         """Convert item to output DTO."""
         return CreateItemOutput(
@@ -93,6 +129,7 @@ class CreateItemUseCase:
             tags=item.tags,
             status=item.status.value,
             source_type=item.source_type.value if item.source_type else None,
+            enrichment_mode=item.enrichment_mode.value,
             created_at=item.created_at,
             updated_at=item.updated_at,
             confirmed_at=item.confirmed_at,

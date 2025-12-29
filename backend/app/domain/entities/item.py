@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from app.domain.value_objects import ItemStatus, SourceType
+from app.domain.value_objects import ItemStatus, SourceType, EnrichmentMode
 from app.domain.exceptions import InvalidStateTransitionException
 
 
@@ -22,6 +22,7 @@ class Item:
     source_type: SourceType | None = None
     confirmed_at: datetime | None = None
     tags: list[str] = field(default_factory=list)
+    enrichment_mode: EnrichmentMode = EnrichmentMode.AI
 
     # State transition rules per state_machine.md
     _ALLOWED_TRANSITIONS: dict[ItemStatus, dict[str, ItemStatus]] = field(

@@ -280,7 +280,7 @@ Search V1 supports two query modes:
 
 ### TagsCard
 - Text: "You currently have 24 active tags in your library."
-- Button: "Manage tags →" leads to `/settings/tags`
+- Button: "Manage tags" leads to `/settings/tags`
 
 ### States
 - Loading: skeleton cards

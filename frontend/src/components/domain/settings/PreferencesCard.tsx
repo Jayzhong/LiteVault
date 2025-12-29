@@ -172,27 +172,6 @@ export function PreferencesCard() {
                         </SelectContent>
                     </Select>
                 </div>
-
-                {/* AI Toggle */}
-                <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="space-y-0.5">
-                        <label
-                            htmlFor="ai-toggle"
-                            className="text-sm font-medium text-foreground"
-                        >
-                            {microcopy.settings.preferences.aiToggle.title}
-                        </label>
-                        <p className="text-xs text-muted-foreground">
-                            {microcopy.settings.preferences.aiToggle.help}
-                        </p>
-                    </div>
-                    <Switch
-                        id="ai-toggle"
-                        checked={preferences?.aiSuggestionsEnabled ?? true}
-                        onCheckedChange={handleAiToggle}
-                        disabled={isUpdatingPreferences}
-                    />
-                </div>
             </CardContent>
         </Card>
     );

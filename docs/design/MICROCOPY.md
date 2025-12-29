@@ -52,6 +52,9 @@ Use these strings verbatim unless a deliberate product change is made.
 - home.capture.placeholder: "Capture your thought..."
 - home.capture.action: "Save"
 - home.capture.disabled_hint (optional): "Write something to save."
+- home.capture.toggle.label: "AI suggestions"
+- home.capture.toggle.on_hint: "AI will suggest title and tags"
+- home.capture.toggle.off_hint: "Save without AI"
 
 ### Pending Review Section
 - home.pending.title: "PENDING REVIEW"
@@ -178,7 +181,7 @@ Use these strings verbatim unless a deliberate product change is made.
 ### Tags Card
 - settings.tags.title: "Tag Management"
 - settings.tags.summary: "You currently have {n} active tags in your library."
-- settings.tags.manage: "Manage tags →"
+- settings.tags.manage: "Manage tags"
 
 ### Settings Footer (optional)
 - settings.footer.version: "LiteVault Version {version}"

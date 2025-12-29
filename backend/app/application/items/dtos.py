@@ -11,6 +11,7 @@ class CreateItemInput:
     user_id: str
     raw_text: str
     idempotency_key: str | None = None
+    enrich: bool = True  # If False, skip AI enrichment
 
 
 @dataclass
@@ -24,6 +25,7 @@ class CreateItemOutput:
     tags: list[str]
     status: str
     source_type: str | None
+    enrichment_mode: str  # 'AI' or 'MANUAL'
     created_at: datetime
     updated_at: datetime
     confirmed_at: datetime | None

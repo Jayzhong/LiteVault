@@ -20,6 +20,13 @@ class SourceType(str, Enum):
     ARTICLE = "ARTICLE"
 
 
+class EnrichmentMode(str, Enum):
+    """How the item was enriched."""
+
+    AI = "AI"
+    MANUAL = "MANUAL"
+
+
 class UserPlan(str, Enum):
     """User subscription plan."""
 
