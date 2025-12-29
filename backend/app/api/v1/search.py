@@ -9,12 +9,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, or_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, DbSession
+from app.api.dependencies import get_current_user, DbSession, get_tag_repository
 from app.api.schemas.search import (
     SearchResponse,
     SearchResultItem,
     SearchPaginationInfo,
 )
+from app.api.schemas.items import TagInItem
 from app.domain.entities.user import User
 from app.domain.exceptions import ValidationException, InvalidCursorException
 from app.infrastructure.persistence.models.item_model import ItemModel
@@ -71,10 +72,28 @@ def encode_cursor(confirmed_at: datetime, item_id: str) -> str:
     return base64.b64encode(json.dumps(data).encode("utf-8")).decode("utf-8")
 
 
+async def resolve_tags_to_objects(
+    tag_names: list[str], user_id: str, tag_repo
+) -> list[TagInItem]:
+    """Resolve tag names to full TagInItem objects."""
+    if not tag_names or not tag_repo:
+        return []
+    
+    result = []
+    for name in tag_names:
+        tag = await tag_repo.get_by_name(name, user_id)
+        if tag:
+            result.append(TagInItem(id=tag.id, name=tag.name, color=tag.color))
+        else:
+            result.append(TagInItem(id="", name=name, color="#6B7280"))
+    return result
+
+
 @router.get("", response_model=SearchResponse)
 async def search_library(
     current_user: Annotated[User, Depends(get_current_user)],
     db: DbSession,
+    tag_repo: Annotated[object, Depends(get_tag_repository)],
     q: str = Query(..., min_length=0, description="Search query"),
     cursor: str | None = Query(None, description="Pagination cursor"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -160,19 +179,24 @@ async def search_library(
         if last_item.confirmed_at:
             next_cursor = encode_cursor(last_item.confirmed_at, last_item.id)
     
-    return SearchResponse(
-        items=[
+    # Build response with resolved tag objects
+    response_items = []
+    for item in items:
+        tag_objects = await resolve_tags_to_objects(item.tags or [], current_user.id, tag_repo)
+        response_items.append(
             SearchResultItem(
                 id=item.id,
                 title=item.title,
                 summary=item.summary,
-                tags=item.tags or [],
+                tags=tag_objects,
                 sourceType=item.source_type,
                 confirmedAt=item.confirmed_at,
                 createdAt=item.created_at,
             )
-            for item in items
-        ],
+        )
+    
+    return SearchResponse(
+        items=response_items,
         mode=mode,
         pagination=SearchPaginationInfo(
             cursor=next_cursor,

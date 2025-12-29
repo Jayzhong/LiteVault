@@ -9,6 +9,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { ColoredTagBadge } from '@/components/shared/ColoredTagBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -47,7 +48,7 @@ export function ItemDetailModal({
     // Edit form state
     const [editTitle, setEditTitle] = useState(item.title || '');
     const [editSummary, setEditSummary] = useState(item.summary || '');
-    const [editTags, setEditTags] = useState<string[]>(item.tags);
+    const [editTags, setEditTags] = useState<string[]>(item.tags.map(t => t.name));
 
     // Get available tags from AppContext
     const { tags: existingTags } = useAppContext();
@@ -64,7 +65,7 @@ export function ItemDetailModal({
     const handleStartEdit = () => {
         setEditTitle(item.title || '');
         setEditSummary(item.summary || '');
-        setEditTags([...item.tags]);
+        setEditTags(item.tags.map(t => t.name));
         setError(null);
         setIsEditing(true);
     };
@@ -95,7 +96,11 @@ export function ItemDetailModal({
                 ...item,
                 title: editTitle || null,
                 summary: editSummary || null,
-                tags: editTags,
+                tags: editTags.map(name => ({
+                    id: '',
+                    name,
+                    color: '#6B7280',
+                })),
                 updatedAt: new Date(),
             };
 
@@ -227,9 +232,7 @@ export function ItemDetailModal({
                             {item.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-2 pt-2 border-t">
                                     {item.tags.map((tag) => (
-                                        <Badge key={tag} variant="secondary">
-                                            {tag}
-                                        </Badge>
+                                        <ColoredTagBadge key={tag.id || tag.name} name={tag.name} color={tag.color} />
                                     ))}
                                 </div>
                             )}

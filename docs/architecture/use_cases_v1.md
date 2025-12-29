@@ -719,7 +719,7 @@ class RenameTagOutput:
 
 ---
 
-### 5.4 DeleteTag
+### 5.4 DeleteTag (Soft-Delete)
 
 **Endpoint:** `DELETE /tags/:id`
 
@@ -743,19 +743,29 @@ None (returns 204 No Content)
 | Validation | Error Code | HTTP |
 |------------|------------|------|
 | User not authenticated | `UNAUTHORIZED` | 401 |
-| Tag not found | `NOT_FOUND` | 404 |
+| Tag not found (never existed) | `TAG_NOT_FOUND` | 404 |
 
 #### Flow
 
 ```
 1. Check authentication
 2. Get tag by ID and user_id
-3. Delete all item_tags associations
-4. Delete tag
-5. Return 204
+3. If tag not found: return 404 TAG_NOT_FOUND
+4. If tag.deleted_at is already set: return 204 (idempotent)
+5. Set tag.deleted_at = now(), tag.updated_at = now()
+6. NOTE: Do NOT delete item_tags associations (filtering handles display)
+7. Return 204
 ```
 
+#### Soft-Delete Notes
+
+- The tag row is preserved with `deleted_at` timestamp
+- Item associations (`item_tags`) are preserved but hidden from display
+- Re-creating a tag with the same name will "revive" the deleted tag (see CreateTag)
+- Deleting an already-deleted tag is idempotent (returns 204)
+
 ---
+
 
 ### 5.5 MergeTags
 

@@ -11,6 +11,7 @@ class TagResponse(BaseModel):
     usageCount: int
     lastUsed: datetime | None
     createdAt: datetime
+    color: str = "#6B7280"  # Hex color code
 
 
 class CreateTagRequest(BaseModel):
@@ -25,5 +26,11 @@ class TagsListResponse(BaseModel):
 
 
 class RenameTagRequest(BaseModel):
-    """Request body for PATCH /tags/:id."""
+    """Request body for PATCH /tags/:id - update name."""
     name: str = Field(..., min_length=1, max_length=50)
+
+
+class UpdateTagRequest(BaseModel):
+    """Request body for PATCH /tags/:id - update name and/or color."""
+    name: str | None = Field(None, min_length=1, max_length=50)
+    color: str | None = Field(None, min_length=7, max_length=7, pattern=r"^#[0-9A-Fa-f]{6}$")

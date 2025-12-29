@@ -10,6 +10,15 @@ export type ItemStatus = 'ENRICHING' | 'READY_TO_CONFIRM' | 'ARCHIVED' | 'DISCAR
 export type SourceType = 'NOTE' | 'ARTICLE';
 
 /**
+ * TagInItem - Tag object embedded in item responses
+ */
+export interface TagInItem {
+    id: string;
+    name: string;
+    color: string;
+}
+
+/**
  * Item - Core data type for captured content
  */
 export interface Item {
@@ -17,7 +26,7 @@ export interface Item {
     rawText: string;
     title: string | null;
     summary: string | null;
-    tags: string[];
+    tags: TagInItem[];
     status: ItemStatus;
     sourceType?: SourceType;
     createdAt: Date;
@@ -34,6 +43,7 @@ export interface Tag {
     usageCount: number;
     lastUsed: Date | null;
     createdAt: Date;
+    color?: string; // Hex color code, defaults to #6B7280
 }
 
 /**
@@ -44,7 +54,7 @@ export interface EvidenceItem {
     snippet: string;
     score?: number;
     type: SourceType;
-    tags: string[];
+    tags: TagInItem[];
     title: string;
 }
 

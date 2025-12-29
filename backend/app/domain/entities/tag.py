@@ -15,3 +15,4 @@ class Tag:
     usage_count: int = 0
     last_used: datetime | None = None
     created_at: datetime | None = None
+    color: str = "#6B7280"  # Default neutral gray

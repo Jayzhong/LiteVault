@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { microcopy } from '@/lib/microcopy';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,10 +14,16 @@ import { Search, AlertCircle } from 'lucide-react';
 import type { Item } from '@/lib/types';
 
 export default function LibraryPage() {
-    const { items, isLoading, isError, hasMore, fetchNextPage, isFetchingNextPage, refetch } = useLibrary();
+    const { items, isLoading, isFetching, isError, hasMore, fetchNextPage, isFetchingNextPage, refetch } = useLibrary();
     const { profile } = useAccountProfile();
     const userTimezone = profile?.preferences?.timezone || 'UTC';
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Prevent SSR/hydration mismatch - only show content after mount
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Filter items by search query (client-side)
     const filteredItems = items.filter((item) =>
@@ -30,8 +36,11 @@ export default function LibraryPage() {
     // Group items by date using user's timezone
     const groupedItems = groupItemsByDate(filteredItems, userTimezone);
 
-    // Loading state
-    if (isLoading) {
+    // Show loading skeleton when:
+    // - Not yet mounted (SSR/hydration)
+    // - Initial load (isLoading)
+    // - Fetching data but no items yet (prevents empty flash)
+    if (!mounted || isLoading || (isFetching && items.length === 0)) {
         return (
             <div className="space-y-8">
                 <div className="flex items-center justify-between">
@@ -73,8 +82,8 @@ export default function LibraryPage() {
         );
     }
 
-    // Empty state
-    if (items.length === 0) {
+    // Empty state - only show after mounted AND not fetching
+    if (items.length === 0 && !isFetching) {
         return (
             <div className="space-y-8">
                 <h1 className="text-2xl font-semibold text-foreground">
@@ -89,6 +98,7 @@ export default function LibraryPage() {
             </div>
         );
     }
+
 
     return (
         <div className="space-y-8">

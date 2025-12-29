@@ -556,53 +556,75 @@ Future endpoint for AI-powered search with synthesized answers and evidence.
       "name": "Meetings",
       "usageCount": 12,
       "lastUsed": "2025-12-27T13:00:00.000Z",
-      "createdAt": "2025-12-01T00:00:00.000Z"
+      "createdAt": "2025-12-01T00:00:00.000Z",
+      "color": "#6B7280"
     }
   ],
-  "pagination": {
-    "cursor": null,
-    "hasMore": false
-  },
   "total": 8
 }
 ```
 
 ---
 
-#### `POST /tags` — Create Tag
+#### `POST /tags` — Create or Get Tag (Upsert)
+
+Creates a new tag or returns existing tag if name already exists (case-insensitive match).
+
+**Revive Behavior:** If a soft-deleted tag with the same name exists, it is "revived":
+- `deleted_at` is set to NULL
+- The same tag ID is returned
+- Optionally updates `color` if provided
 
 **Request**
 ```json
 {
-  "name": "Design"
+  "name": "Design",
+  "color": "#3B82F6"
 }
 ```
 
-**Response** `201 Created`
+**Response** `201 Created` (new tag or revived)
 ```json
 {
   "id": "tag-uuid-new",
   "name": "Design",
   "usageCount": 0,
   "lastUsed": null,
-  "createdAt": "2025-12-27T13:10:00.000Z"
+  "createdAt": "2025-12-27T13:10:00.000Z",
+  "color": "#3B82F6"
 }
 ```
+
+**Response** `200 OK` (existing active tag returned)
+```json
+{
+  "id": "tag-uuid-existing",
+  "name": "Design",
+  "usageCount": 5,
+  "lastUsed": "2025-12-26T10:00:00.000Z",
+  "createdAt": "2025-12-01T00:00:00.000Z",
+  "color": "#6B7280"
+}
+```
+
+> **Note:** Tag matching is case-insensitive. Posting "design" when "Design" exists returns the existing tag (or revives a deleted "Design").
 
 **Error Cases**
 | Status | Code | Description |
 |--------|------|-------------|
 | 400 | `VALIDATION_ERROR` | Name empty or too long |
-| 409 | `TAG_EXISTS` | Tag with same name already exists |
 
 ---
 
-#### `PATCH /tags/:id` — Rename Tag
+#### `PATCH /tags/:id` — Update Tag (Name and/or Color)
+
+Updates a tag's name and/or color. Both fields are optional.
 
 **Request**
 ```json
 {
-  "name": "Meetings & Notes"
+  "name": "Meetings & Notes",
+  "color": "#3B82F6"
 }
 ```
 
@@ -613,24 +635,40 @@ Future endpoint for AI-powered search with synthesized answers and evidence.
   "name": "Meetings & Notes",
   "usageCount": 12,
   "lastUsed": "2025-12-27T13:00:00.000Z",
-  "createdAt": "2025-12-01T00:00:00.000Z"
+  "createdAt": "2025-12-01T00:00:00.000Z",
+  "color": "#3B82F6"
 }
 ```
 
+**Error Cases**
+| Status | Code | Description |
+|--------|------|-------------|
+| 400 | `VALIDATION_ERROR` | Invalid color format (must be #RRGGBB) |
+| 404 | `NOT_FOUND` | Tag does not exist |
+| 409 | `TAG_EXISTS` | New name conflicts with existing tag |
+
 ---
 
-#### `DELETE /tags/:id` — Delete Tag
+#### `DELETE /tags/:id` — Soft-Delete Tag
 
-Removes tag from all items.
+Soft-deletes a tag by setting `deleted_at=now()`. The tag is hidden from all queries but preserved in the database. Items that referenced the tag will no longer display it.
+
+**Behavior:**
+- Sets `deleted_at=now()` (does NOT physically remove the row)
+- Deleted tags are excluded from GET /tags and all item displays
+- **Idempotent:** Deleting an already-deleted tag returns success
 
 **Response** `204 No Content`
 
 **Error Cases**
 | Status | Code | Description |
 |--------|------|-------------|
-| 404 | `NOT_FOUND` | Tag does not exist |
+| 404 | `TAG_NOT_FOUND` | Tag does not exist (never existed) |
+
+> **Note:** Re-creating a tag with the same name after deletion will "revive" the original tag, returning the same ID. See POST /tags.
 
 ---
+
 
 #### `POST /tags/merge` — Merge Tags
 

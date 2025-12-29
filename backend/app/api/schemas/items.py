@@ -4,6 +4,14 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class TagInItem(BaseModel):
+    """Tag object embedded in item responses."""
+    
+    id: str
+    name: str
+    color: str = "#6B7280"
+
+
 class CreateItemRequest(BaseModel):
     """Request body for POST /items."""
 
@@ -18,7 +26,7 @@ class ItemResponse(BaseModel):
     rawText: str
     title: str | None
     summary: str | None
-    tags: list[str]
+    tags: list[TagInItem]
     status: str
     sourceType: str | None
     enrichmentMode: str | None = None  # 'AI' or 'MANUAL'
@@ -35,7 +43,11 @@ class PendingItemsResponse(BaseModel):
 
 
 class UpdateItemRequest(BaseModel):
-    """Request body for PATCH /items/{id}."""
+    """Request body for PATCH /items/{id}.
+    
+    Note: tags in request is still list[str] (tag names).
+    The response will return full TagInItem objects.
+    """
 
     action: str | None = None  # 'confirm' or 'discard'
     title: str | None = None
@@ -50,7 +62,7 @@ class UpdateItemResponse(BaseModel):
     status: str
     title: str | None = None
     summary: str | None = None
-    tags: list[str] = []
+    tags: list[TagInItem] = []
     updatedAt: datetime
     confirmedAt: datetime | None = None
 

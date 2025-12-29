@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { microcopy } from '@/lib/microcopy';
 import { Input } from '@/components/ui/input';
@@ -17,20 +17,50 @@ import { TagsTable } from '@/components/domain/tags/TagsTable';
 import { CreateTagModal } from '@/components/domain/tags/CreateTagModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useTags } from '@/lib/hooks/useTags';
-import { Search, ChevronDown, BarChart3, Plus, AlertCircle } from 'lucide-react';
+import { Search, ChevronDown, BarChart3, Plus, AlertCircle, Loader2 } from 'lucide-react';
+
+/**
+ * Custom hook for debouncing a value.
+ */
+function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+}
 
 export default function TagManagementPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<'name' | 'usage' | 'lastUsed'>('name');
     const [showUnused, setShowUnused] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+
+    // Debounce search query to prevent focus loss on each keystroke
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
     // Use real API with useTags hook
     const { tags, isLoading, isError, createTag, refetch, isCreating } = useTags({
-        q: searchQuery || undefined,
+        q: debouncedSearchQuery || undefined,
         sort: sortBy,
         unused: showUnused || undefined,
     });
+
+    // Track initial load completion
+    useEffect(() => {
+        if (!isLoading && !hasInitiallyLoaded) {
+            setHasInitiallyLoaded(true);
+        }
+    }, [isLoading, hasInitiallyLoaded]);
 
     const handleCreateTag = async (name: string) => {
         try {
@@ -47,8 +77,8 @@ export default function TagManagementPage() {
         setSortBy('name');
     };
 
-    // Loading state
-    if (isLoading) {
+    // Loading state - only show skeleton before initial load
+    if (isLoading && !hasInitiallyLoaded) {
         return (
             <div className="space-y-8">
                 <Skeleton className="h-4 w-48" />
@@ -127,6 +157,10 @@ export default function TagManagementPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10"
                     />
+                    {/* Loading indicator during search */}
+                    {isLoading && (
+                        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                    )}
                 </div>
                 <div className="flex items-center gap-4 flex-wrap">
                     <DropdownMenu>

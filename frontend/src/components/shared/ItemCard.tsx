@@ -2,8 +2,9 @@
 
 import { KeyboardEvent, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { ColoredTagBadge } from '@/components/shared/ColoredTagBadge';
 import { cn } from '@/lib/utils';
-import type { SourceType } from '@/lib/types';
+import type { SourceType, TagInItem } from '@/lib/types';
 import { Clock, FileText, Link as LinkIcon } from 'lucide-react';
 
 interface ItemCardProps {
@@ -12,7 +13,7 @@ interface ItemCardProps {
     /** Item summary or preview text */
     summary?: string;
     /** Tags to display */
-    tags?: string[];
+    tags?: TagInItem[];
     /** Source type for icon */
     sourceType?: SourceType;
     /** Status badge text (e.g., "Ready to confirm") */
@@ -107,9 +108,7 @@ export function ItemCard({
                 {tags.length > 0 && (
                     <div className="flex items-center gap-1.5 flex-wrap">
                         {tags.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="secondary" className="text-xs">
-                                {tag}
-                            </Badge>
+                            <ColoredTagBadge key={tag.id || tag.name} name={tag.name} color={tag.color} className="text-xs" />
                         ))}
                         {tags.length > 3 && (
                             <span className="text-xs text-muted-foreground">

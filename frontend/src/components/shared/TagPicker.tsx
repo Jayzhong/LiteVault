@@ -10,12 +10,15 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { X, Plus, Check } from 'lucide-react';
+import { X, Plus, Check, Loader2 } from 'lucide-react';
+import { useTagSearch } from '@/lib/hooks/useTagSearch';
+import { apiClient, isUsingRealApi } from '@/lib/api/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TagPickerProps {
     /** Currently selected tags */
     selectedTags: string[];
-    /** Available tags to choose from (optional - uses selectedTags if not provided) */
+    /** Available tags to choose from (fallback for non-API mode) */
     availableTags?: string[];
     /** Callback when tags change */
     onChange: (tags: string[]) => void;
@@ -29,7 +32,7 @@ interface TagPickerProps {
 
 /**
  * TagPicker component for selecting and managing tags.
- * Provides search, add, remove, and optional create functionality.
+ * Uses debounced backend search when API is available.
  */
 export function TagPicker({
     selectedTags,
@@ -42,21 +45,41 @@ export function TagPicker({
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
+    const queryClient = useQueryClient();
+
+    // Debounced backend tag search (only when popover is open)
+    const { tags: searchedTags, isLoading } = useTagSearch(searchQuery, {
+        enabled: isOpen,
+        debounceMs: 300,
+    });
 
     // Focus input when popover opens
     useEffect(() => {
         if (isOpen && inputRef.current) {
             setTimeout(() => inputRef.current?.focus(), 50);
         }
+        // Reset search when closing
+        if (!isOpen) {
+            setSearchQuery('');
+        }
     }, [isOpen]);
 
-    // Combine available tags with selected tags (deduped)
-    const allTags = [...new Set([...availableTags, ...selectedTags])];
+    // Combine searched tags with selected tags and availableTags (deduped)
+    // Priority: searched tags from API, then availableTags for initial load, then selected
+    const allTags = [
+        ...new Set([
+            ...searchedTags.map((t) => t.name),
+            ...availableTags,
+            ...selectedTags,
+        ]),
+    ];
 
-    // Filter tags based on search query
-    const filteredTags = allTags.filter((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Filter tags based on search query (client-side filter of combined list)
+    const filteredTags = searchQuery.trim()
+        ? allTags.filter((tag) =>
+            tag.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        : allTags;
 
     // Check if search query matches an existing tag (for create option)
     const exactMatch = allTags.some(
@@ -76,9 +99,20 @@ export function TagPicker({
         onChange(selectedTags.filter((t) => t !== tag));
     };
 
-    const handleCreateTag = () => {
+    const handleCreateTag = async () => {
         const newTag = searchQuery.trim();
         if (newTag && !selectedTags.includes(newTag)) {
+            // Create tag via API if available (upsert returns existing if duplicate)
+            if (isUsingRealApi) {
+                try {
+                    await apiClient.createTag(newTag);
+                    // Invalidate tags cache to update Settings > Tags list
+                    queryClient.invalidateQueries({ queryKey: ['tags'] });
+                } catch (error) {
+                    console.error('Failed to persist tag:', error);
+                    // Still add to selection even if API fails
+                }
+            }
             onChange([...selectedTags, newTag]);
             setSearchQuery('');
         }
@@ -129,20 +163,30 @@ export function TagPicker({
                     </PopoverTrigger>
                     <PopoverContent className="w-64 p-2" align="start">
                         {/* Search Input */}
-                        <Input
-                            ref={inputRef}
-                            placeholder={microcopy.tagPicker.placeholder}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            className="mb-2"
-                        />
+                        <div className="relative mb-2">
+                            <Input
+                                ref={inputRef}
+                                placeholder={microcopy.tagPicker.placeholder}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                            />
+                            {isLoading && (
+                                <Loader2 className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                            )}
+                        </div>
 
                         {/* Tag List */}
                         <div className="max-h-40 overflow-y-auto space-y-1">
-                            {filteredTags.length === 0 && !searchQuery.trim() && (
+                            {filteredTags.length === 0 && !searchQuery.trim() && !isLoading && (
                                 <p className="text-sm text-muted-foreground py-2 text-center">
                                     {microcopy.tagPicker.noResults}
+                                </p>
+                            )}
+
+                            {filteredTags.length === 0 && searchQuery.trim() && !isLoading && !allowCreate && (
+                                <p className="text-sm text-muted-foreground py-2 text-center">
+                                    No matching tags
                                 </p>
                             )}
 

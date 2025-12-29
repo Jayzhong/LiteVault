@@ -1,6 +1,7 @@
 'use client';
 
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useAppContext } from '@/lib/store/AppContext';
 import { apiClient, LibraryResponse, isUsingRealApi } from '@/lib/api/client';
 import type { Item } from '@/lib/types';
 
@@ -8,6 +9,7 @@ import type { Item } from '@/lib/types';
 interface UseLibraryResult {
     items: Item[];
     isLoading: boolean;
+    isFetching: boolean;  // Added to track any fetching state
     isError: boolean;
     error: Error | null;
     hasMore: boolean;
@@ -38,10 +40,18 @@ function parseLibraryItem(item: LibraryResponse['items'][0]): Item {
  */
 export function useLibrary(): UseLibraryResult {
     const queryClient = useQueryClient();
+    /*
+     * We need to wait for auth to be fully ready (including token setup)
+     * before we enable the query, otherwise we get 401s and retry delays.
+     * isAuthReady from AppContext handles this check.
+     */
+    const { isAuthReady } = useAppContext();
 
     const {
         data,
-        isLoading,
+        isLoading: isQueryLoading,
+        isPending,
+        isFetching,  // Track any fetching state
         isError,
         error,
         hasNextPage,
@@ -61,7 +71,8 @@ export function useLibrary(): UseLibraryResult {
             return lastPage.pagination.hasMore ? lastPage.pagination.cursor : undefined;
         },
         initialPageParam: undefined as string | undefined,
-        enabled: isUsingRealApi,
+        // If using real API, wait for auth. If mock, run immediately (returns empty).
+        enabled: isUsingRealApi ? isAuthReady : true,
         staleTime: 30000, // 30 seconds
     });
 
@@ -70,9 +81,14 @@ export function useLibrary(): UseLibraryResult {
         page => page.items.map(parseLibraryItem)
     ) ?? [];
 
+    // In React Query v5, isLoading is false if enabled is false (query disabled).
+    // We want to report loading if we are waiting for auth OR if the query is actually loading.
+    const effectiveIsLoading = (isPending && !isError) || (!isAuthReady && isUsingRealApi);
+
     return {
         items,
-        isLoading,
+        isLoading: effectiveIsLoading,
+        isFetching,  // Return fetching state
         isError,
         error: error as Error | null,
         hasMore: hasNextPage ?? false,
@@ -81,3 +97,5 @@ export function useLibrary(): UseLibraryResult {
         refetch: () => refetch(),
     };
 }
+
+

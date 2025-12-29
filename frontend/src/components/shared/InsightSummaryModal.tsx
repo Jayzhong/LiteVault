@@ -31,7 +31,7 @@ export function InsightSummaryModal({ isOpen, onClose, item }: InsightSummaryMod
     const { confirmItem, discardItem, tags: existingTags } = useAppContext();
     const [isConfirming, setIsConfirming] = useState(false);
     const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
-    const [tags, setTags] = useState<string[]>(item.tags);
+    const [tags, setTags] = useState<string[]>(item.tags.map(t => t.name));
 
     const handleConfirm = async () => {
         setIsConfirming(true);

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.api.dependencies import get_current_user, get_db_session
 from app.api.schemas.tags import (
@@ -12,6 +12,7 @@ from app.api.schemas.tags import (
     TagsListResponse,
     CreateTagRequest,
     RenameTagRequest,
+    UpdateTagRequest,
 )
 from app.domain.entities.user import User
 from app.domain.entities.tag import Tag
@@ -39,6 +40,7 @@ def tag_to_response(tag: Tag) -> TagResponse:
         usageCount=tag.usage_count,
         lastUsed=tag.last_used,
         createdAt=tag.created_at or datetime.now(timezone.utc),
+        color=tag.color,
     )
 
 
@@ -67,62 +69,81 @@ async def get_tags(
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=TagResponse)
+@router.post("", response_model=TagResponse)
 async def create_tag(
     request: CreateTagRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     tag_repo: Annotated[SQLAlchemyTagRepository, Depends(get_tag_repository)],
+    response: Response,
 ) -> TagResponse:
-    """Create a new tag."""
-    # Check for duplicate (case-insensitive)
+    """Create a new tag, return existing, or revive deleted tag (upsert with revive semantics).
+    
+    Returns:
+        201 Created: New tag created or deleted tag revived
+        200 OK: Existing active tag returned (case-insensitive match)
+    """
     name = request.name.strip()
+    color = getattr(request, 'color', None)
+    
+    # Check for existing active tag first
     existing = await tag_repo.get_by_name(name, current_user.id)
     if existing:
-        raise TagExistsException(
-            f"Tag '{name}' already exists",
-            details={"tagName": name},
+        # Need to check if it's deleted (get_by_name returns deleted tags too)
+        from sqlalchemy import select
+        from app.infrastructure.persistence.models.tag_model import TagModel
+        result = await tag_repo.session.execute(
+            select(TagModel).where(TagModel.id == existing.id)
         )
+        model = result.scalar_one_or_none()
+        
+        if model and model.deleted_at is not None:
+            # Revive the deleted tag
+            tag = await tag_repo.get_or_create(name, current_user.id, color)
+            response.status_code = status.HTTP_201_CREATED
+            return tag_to_response(tag)
+        
+        # Return existing active tag with 200
+        response.status_code = status.HTTP_200_OK
+        return tag_to_response(existing)
     
-    # Create tag
-    tag = Tag(
-        id=str(uuid.uuid4()),
-        user_id=current_user.id,
-        name=name,
-        name_lower=name.lower(),
-        usage_count=0,
-        last_used=None,
-        created_at=datetime.now(timezone.utc),
-    )
-    created = await tag_repo.create(tag)
-    return tag_to_response(created)
+    # Create new tag
+    tag = await tag_repo.get_or_create(name, current_user.id, color)
+    response.status_code = status.HTTP_201_CREATED
+    return tag_to_response(tag)
+
 
 
 @router.patch("/{tag_id}", response_model=TagResponse)
-async def rename_tag(
+async def update_tag(
     tag_id: str,
-    request: RenameTagRequest,
+    request: UpdateTagRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     tag_repo: Annotated[SQLAlchemyTagRepository, Depends(get_tag_repository)],
 ) -> TagResponse:
-    """Rename a tag."""
+    """Update a tag (name and/or color)."""
     # Get existing tag
     tag = await tag_repo.get_by_id(tag_id, current_user.id)
     if not tag:
         raise TagNotFoundException("Tag not found", details={"tagId": tag_id})
     
-    # Check for duplicate name (case-insensitive)
-    new_name = request.name.strip()
-    if new_name.lower() != tag.name_lower:
-        existing = await tag_repo.get_by_name(new_name, current_user.id)
-        if existing:
-            raise TagExistsException(
-                f"Tag '{new_name}' already exists",
-                details={"tagName": new_name},
-            )
+    # Update name if provided
+    if request.name is not None:
+        new_name = request.name.strip()
+        # Check for duplicate name (case-insensitive)
+        if new_name.lower() != tag.name_lower:
+            existing = await tag_repo.get_by_name(new_name, current_user.id)
+            if existing:
+                raise TagExistsException(
+                    f"Tag '{new_name}' already exists",
+                    details={"tagName": new_name},
+                )
+        tag.name = new_name
+        tag.name_lower = new_name.lower()
     
-    # Update tag
-    tag.name = new_name
-    tag.name_lower = new_name.lower()
+    # Update color if provided
+    if request.color is not None:
+        tag.color = request.color
+    
     updated = await tag_repo.update(tag)
     return tag_to_response(updated)
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -20,6 +21,12 @@ export function UserCard() {
     const { signOut } = useClerk();
     const router = useRouter();
 
+    // Prevent hydration mismatch from Radix UI dynamic IDs
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const handleLogout = async () => {
         await signOut();
         router.push('/auth/login');
@@ -29,8 +36,8 @@ export function UserCard() {
         router.push('/settings');
     };
 
-    // Loading state
-    if (isLoading) {
+    // Loading state or not yet mounted (prevents hydration mismatch)
+    if (isLoading || !mounted) {
         return (
             <div className="border-t border-border p-4">
                 <div className="flex items-center gap-3">
@@ -96,3 +103,4 @@ export function UserCard() {
         </div>
     );
 }
+

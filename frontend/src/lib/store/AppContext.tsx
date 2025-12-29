@@ -11,7 +11,8 @@ import React, {
 } from 'react';
 import type { Item, Tag, SearchResult } from '@/lib/types';
 import { mockItems, mockTags, mockSearchResult } from '@/lib/fixtures/items';
-import { apiClient, isUsingRealApi, generateIdempotencyKey } from '@/lib/api';
+import { useAuth } from '@clerk/nextjs';
+import { apiClient, isUsingRealApi, generateIdempotencyKey, setTokenGetter, isUsingClerkAuth } from '@/lib/api';
 
 interface AppContextType {
     // Pending items
@@ -47,6 +48,9 @@ interface AppContextType {
 
     // API mode
     isUsingRealApi: boolean;
+
+    // Auth state
+    isAuthReady: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -59,11 +63,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [libraryItems, setLibraryItems] = useState<Item[]>(
         mockItems.filter((i) => i.status === 'ARCHIVED')
     );
-    const [tags, setTags] = useState<Tag[]>(mockTags);
+    const [tags, setTags] = useState<Tag[]>([]);
     const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
     const [aiSuggestionsEnabled, setAiSuggestionsEnabled] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Auth readiness state
+    // If not using Clerk, we are always ready (using dev ID)
+    const [isAuthReady, setIsAuthReady] = useState(!isUsingClerkAuth);
+
+    // Clerk Auth Setup
+    const { getToken, isSignedIn, isLoaded } = useAuth();
+
+    useEffect(() => {
+        if (!isUsingClerkAuth) return;
+
+        if (isLoaded) {
+            if (isSignedIn) {
+                // Set up token getter
+                setTokenGetter(async () => {
+                    return await getToken();
+                });
+            } else {
+                // Clear token getter
+                setTokenGetter(async () => null);
+            }
+            // Mark auth as ready once we've handled the token setup
+            setIsAuthReady(true);
+        }
+    }, [isLoaded, isSignedIn, getToken]);
 
     // Polling state
     const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,7 +120,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Start/stop polling based on whether we have ENRICHING items
     useEffect(() => {
-        if (!isUsingRealApi) return;
+        if (!isUsingRealApi || !isAuthReady) return; // Wait for auth
 
         if (hasEnrichingItems && !pollIntervalRef.current) {
             // Start polling
@@ -108,14 +137,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 pollIntervalRef.current = null;
             }
         };
-    }, [hasEnrichingItems, fetchPendingItems]);
+    }, [hasEnrichingItems, fetchPendingItems, isAuthReady]);
 
     // Initial fetch of pending items
     useEffect(() => {
-        if (isUsingRealApi) {
+        if (isUsingRealApi && isAuthReady && (isSignedIn || !isUsingClerkAuth)) {
             fetchPendingItems();
         }
-    }, [fetchPendingItems]);
+    }, [fetchPendingItems, isAuthReady, isSignedIn]);
+
+    // Fetch tags from API
+    useEffect(() => {
+        if (isUsingRealApi && isAuthReady && (isSignedIn || !isUsingClerkAuth)) {
+            apiClient.getTags({ limit: 100 })
+                .then((response) => {
+                    const parsedTags: Tag[] = response.tags.map((t) => ({
+                        id: t.id,
+                        name: t.name,
+                        usageCount: t.usageCount,
+                        lastUsed: t.lastUsed ? new Date(t.lastUsed) : null,
+                        createdAt: new Date(t.createdAt),
+                        color: t.color ?? '#6B7280',
+                    }));
+                    setTags(parsedTags);
+                })
+                .catch((err) => {
+                    console.error('Failed to fetch tags:', err);
+                    // Keep mockTags as fallback
+                });
+        }
+    }, [isAuthReady, isSignedIn]);
 
     // Add a new pending item
     const addPendingItem = useCallback(async (rawText: string, enrich?: boolean) => {
@@ -162,7 +213,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
                                 ...item,
                                 title: generateMockTitle(rawText),
                                 summary: generateMockSummary(rawText),
-                                tags: ['Ideas', 'Notes'],
+                                tags: [
+                                    { id: 'tag-ideas', name: 'Ideas', color: '#6B7280' },
+                                    { id: 'tag-notes', name: 'Notes', color: '#6B7280' },
+                                ],
                                 status: 'READY_TO_CONFIRM' as const,
                                 updatedAt: new Date(),
                             }
@@ -176,6 +230,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Confirm an item (move to library)
     const confirmItem = useCallback(
         async (id: string, edits?: { title?: string; summary?: string; tags?: string[] }) => {
+            // Convert string[] to TagInItem[] for internal state
+            const tagObjects: import('@/lib/types').TagInItem[] | undefined = edits?.tags?.map(name => ({
+                id: '',
+                name,
+                color: '#6B7280',
+            }));
             if (isUsingRealApi) {
                 // Real API mode
                 try {
@@ -188,7 +248,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                         const confirmedItem: Item = {
                             ...item,
                             status: 'ARCHIVED',
-                            tags: edits?.tags || item.tags,
+                            tags: tagObjects || item.tags,
                             confirmedAt: new Date(),
                             updatedAt: new Date(),
                         };
@@ -209,7 +269,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     const confirmedItem: Item = {
                         ...item,
                         status: 'ARCHIVED',
-                        tags: edits?.tags || item.tags,
+                        tags: tagObjects || item.tags,
                         confirmedAt: new Date(),
                         updatedAt: new Date(),
                     };
@@ -289,7 +349,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                                     ...item,
                                     title: generateMockTitle(item.rawText),
                                     summary: generateMockSummary(item.rawText),
-                                    tags: ['Ideas'],
+                                    tags: [{ id: 'tag-ideas', name: 'Ideas', color: '#6B7280' }],
                                     status: 'READY_TO_CONFIRM' as const,
                                     updatedAt: new Date(),
                                 }
@@ -347,6 +407,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 error,
                 clearError,
                 isUsingRealApi,
+                isAuthReady,
             }}
         >
             {children}

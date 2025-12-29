@@ -116,7 +116,7 @@ class TestSearchTagOnlyMode:
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 1
-        assert "meetings" in data["items"][0]["tags"]
+        assert any(t["name"] == "meetings" for t in data["items"][0]["tags"])
 
     async def test_tag_only_empty_term_returns_400(
         self, client: AsyncClient, dev_user_headers: dict

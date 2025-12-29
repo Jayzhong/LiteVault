@@ -2,6 +2,7 @@
 
 from app.domain.repositories.item_repository import ItemRepository
 from app.domain.repositories.outbox_repository import OutboxRepository
+from app.domain.repositories.item_tag_repository import ItemTagRepository
 from app.domain.exceptions import ItemNotFoundException
 from app.application.items.dtos import UpdateItemInput, UpdateItemOutput
 from app.domain.entities.item import Item
@@ -14,9 +15,13 @@ class UpdateItemUseCase:
         self,
         item_repo: ItemRepository,
         outbox_repo: OutboxRepository,
+        tag_repo=None,
+        item_tag_repo: ItemTagRepository | None = None,
     ):
         self.item_repo = item_repo
         self.outbox_repo = outbox_repo
+        self.tag_repo = tag_repo
+        self.item_tag_repo = item_tag_repo
 
     async def execute(self, input: UpdateItemInput) -> UpdateItemOutput:
         """Execute the use case."""
@@ -32,6 +37,17 @@ class UpdateItemUseCase:
                 item.title = input.title
             if input.summary is not None:
                 item.summary = input.summary
+            
+            # Create item_tags associations and update usage counts
+            if input.tags and self.tag_repo and self.item_tag_repo:
+                for tag_name in input.tags:
+                    # Get or create the tag
+                    tag = await self.tag_repo.get_or_create(tag_name, input.user_id)
+                    # Create association
+                    await self.item_tag_repo.create(item.id, tag.id)
+                    # Increment usage count
+                    await self.tag_repo.increment_usage(tag.id)
+            
             item.confirm(tags=input.tags)
         elif input.action == "discard":
             item.discard()
@@ -45,6 +61,31 @@ class UpdateItemUseCase:
             if input.summary is not None:
                 item.summary = input.summary
             if input.tags is not None:
+                # Handle tag changes: compute diff and update
+                if self.tag_repo and self.item_tag_repo:
+                    old_tag_ids = await self.item_tag_repo.get_tag_ids_by_item_id(item.id)
+                    
+                    # Get new tag IDs
+                    new_tag_ids = []
+                    for tag_name in input.tags:
+                        tag = await self.tag_repo.get_or_create(tag_name, input.user_id)
+                        new_tag_ids.append(tag.id)
+                    
+                    # Decrement for removed tags
+                    for old_id in old_tag_ids:
+                        if old_id not in new_tag_ids:
+                            await self.tag_repo.decrement_usage(old_id)
+                    
+                    # Clear old associations
+                    await self.item_tag_repo.delete_by_item_id(item.id)
+                    
+                    # Create new associations and increment for added tags
+                    for i, tag_name in enumerate(input.tags):
+                        tag_id = new_tag_ids[i]
+                        await self.item_tag_repo.create(item.id, tag_id)
+                        if tag_id not in old_tag_ids:
+                            await self.tag_repo.increment_usage(tag_id)
+                
                 item.tags = input.tags
 
         # Save

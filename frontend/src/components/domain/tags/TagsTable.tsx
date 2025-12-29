@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { microcopy, t } from '@/lib/microcopy';
 import {
     Table,
@@ -11,9 +12,11 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAppContext } from '@/lib/store/AppContext';
 import { useAccountProfile } from '@/lib/hooks/useAccountProfile';
+import { useTags } from '@/lib/hooks/useTags';
 import { formatRelativeDate } from '@/lib/utils/dateFormat';
+import { TagColorPicker } from '@/components/domain/tags/TagColorPicker';
+import { RenameTagModal } from '@/components/domain/tags/RenameTagModal';
 import type { Tag } from '@/lib/types';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import {
@@ -29,9 +32,10 @@ interface TagsTableProps {
 }
 
 export function TagsTable({ tags }: TagsTableProps) {
-    const { deleteTag } = useAppContext();
+    const { deleteTag, updateTagColor, renameTag } = useTags();
     const { profile } = useAccountProfile();
     const userTimezone = profile?.preferences?.timezone || 'UTC';
+    const [renameTarget, setRenameTarget] = useState<Tag | null>(null);
 
     const formatDate = (date: Date | null) => {
         if (!date) return 'Never';
@@ -39,12 +43,25 @@ export function TagsTable({ tags }: TagsTableProps) {
     };
 
     const handleRename = (tag: Tag) => {
-        toast.info(`Rename dialog would open for "${tag.name}"`);
+        setRenameTarget(tag);
     };
 
-    const handleDelete = (tag: Tag) => {
-        deleteTag(tag.id);
-        toast.success(`Tag "${tag.name}" deleted`);
+    const handleDelete = async (tag: Tag) => {
+        try {
+            await deleteTag(tag.id);
+            toast.success(`Tag "${tag.name}" deleted`);
+        } catch {
+            toast.error('Failed to delete tag');
+        }
+    };
+
+    const handleColorChange = async (tag: Tag, newColor: string) => {
+        try {
+            await updateTagColor(tag.id, newColor);
+            toast.success(`Color updated for "${tag.name}"`);
+        } catch {
+            toast.error('Failed to update color');
+        }
     };
 
     // Tag actions dropdown (shared between mobile and desktop)
@@ -83,6 +100,11 @@ export function TagsTable({ tags }: TagsTableProps) {
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
+                                    <TagColorPicker
+                                        color={tag.color || '#6B7280'}
+                                        onChange={(color) => handleColorChange(tag, color)}
+                                        size="sm"
+                                    />
                                     <span className="font-medium text-foreground">
                                         {tag.name}
                                     </span>
@@ -108,6 +130,7 @@ export function TagsTable({ tags }: TagsTableProps) {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-12">Color</TableHead>
                             <TableHead>{microcopy.tags.table.col.name}</TableHead>
                             <TableHead>{microcopy.tags.table.col.usage}</TableHead>
                             <TableHead>{microcopy.tags.table.col.lastUsed}</TableHead>
@@ -117,6 +140,13 @@ export function TagsTable({ tags }: TagsTableProps) {
                     <TableBody>
                         {tags.map((tag) => (
                             <TableRow key={tag.id}>
+                                <TableCell>
+                                    <TagColorPicker
+                                        color={tag.color || '#6B7280'}
+                                        onChange={(color) => handleColorChange(tag, color)}
+                                        size="md"
+                                    />
+                                </TableCell>
                                 <TableCell className="font-medium">
                                     <div className="flex items-center gap-2">
                                         {tag.name}
@@ -139,6 +169,16 @@ export function TagsTable({ tags }: TagsTableProps) {
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Rename Tag Modal */}
+            {renameTarget && (
+                <RenameTagModal
+                    isOpen={!!renameTarget}
+                    onClose={() => setRenameTarget(null)}
+                    tag={renameTarget}
+                    onRename={renameTag}
+                />
+            )}
         </>
     );
 }

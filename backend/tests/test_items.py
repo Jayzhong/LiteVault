@@ -403,7 +403,7 @@ async def test_confirm_item_happy_path(
     data = response.json()
     assert data["status"] == "ARCHIVED"
     assert data["confirmedAt"] is not None
-    assert data["tags"] == ["TestTag"]
+    assert [t["name"] for t in data["tags"]] == ["TestTag"]
     
     # Verify item no longer in pending
     pending_response = await client.get(
@@ -458,7 +458,7 @@ async def test_confirm_item_with_edits(
     assert data["status"] == "ARCHIVED"
     assert data["title"] == "User Edited Title"
     assert data["summary"] == "User Edited Summary"
-    assert data["tags"] == ["CustomTag1", "CustomTag2"]
+    assert [t["name"] for t in data["tags"]] == ["CustomTag1", "CustomTag2"]
 
 
 @pytest.mark.asyncio

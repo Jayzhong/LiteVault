@@ -7,12 +7,13 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies import get_current_user, get_item_repository
+from app.api.dependencies import get_current_user, get_item_repository, get_tag_repository
 from app.api.schemas.library import (
     LibraryResponse,
     LibraryItemResponse,
     PaginationInfo,
 )
+from app.api.schemas.items import TagInItem
 from app.domain.entities.user import User
 from app.domain.exceptions import InvalidCursorException
 from app.infrastructure.persistence.repositories.item_repository_impl import (
@@ -47,10 +48,44 @@ def encode_cursor(confirmed_at: datetime, item_id: str) -> str:
     return base64.b64encode(json.dumps(data).encode("utf-8")).decode("utf-8")
 
 
+async def resolve_tags_to_objects_batch(
+    items_with_tags: list[tuple[object, list[str]]], user_id: str, tag_repo
+) -> dict[str, list[TagInItem]]:
+    """Batch resolve tag names to full TagInItem objects for multiple items.
+    
+    Returns a dict mapping item_id to list of TagInItem.
+    Uses a single query to fetch all tags instead of N queries.
+    """
+    if not items_with_tags or not tag_repo:
+        return {}
+    
+    # Collect all unique tag names
+    all_tag_names = set()
+    for _, tags in items_with_tags:
+        all_tag_names.update(tags)
+    
+    # Single batch query for all tags
+    tag_map = await tag_repo.get_by_names(list(all_tag_names), user_id)
+    
+    # Build result for each item
+    result = {}
+    for item, tags in items_with_tags:
+        tag_objects = []
+        for name in tags:
+            tag = tag_map.get(name.lower().strip())
+            if tag:
+                tag_objects.append(TagInItem(id=tag.id, name=tag.name, color=tag.color))
+            # Skip tags that don't exist (soft-deleted tags)
+        result[item.id] = tag_objects
+    
+    return result
+
+
 @router.get("", response_model=LibraryResponse)
 async def get_library(
     current_user: Annotated[User, Depends(get_current_user)],
     item_repo: Annotated[SQLAlchemyItemRepository, Depends(get_item_repository)],
+    tag_repo: Annotated[object, Depends(get_tag_repository)],
     cursor: str | None = Query(None, description="Pagination cursor"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
 ) -> LibraryResponse:
@@ -80,23 +115,31 @@ async def get_library(
         if last_item.confirmed_at:
             next_cursor = encode_cursor(last_item.confirmed_at, last_item.id)
     
+    # Batch resolve all tags in a single query
+    items_with_tags = [(item, item.tags) for item in items]
+    tag_objects_map = await resolve_tags_to_objects_batch(items_with_tags, current_user.id, tag_repo)
+    
+    # Build response
+    response_items = [
+        LibraryItemResponse(
+            id=item.id,
+            rawText=item.raw_text,
+            title=item.title,
+            summary=item.summary,
+            tags=tag_objects_map.get(item.id, []),
+            status=item.status.value,
+            sourceType=item.source_type.value if item.source_type else None,
+            createdAt=item.created_at,
+            confirmedAt=item.confirmed_at,
+        )
+        for item in items
+    ]
+    
     return LibraryResponse(
-        items=[
-            LibraryItemResponse(
-                id=item.id,
-                rawText=item.raw_text,
-                title=item.title,
-                summary=item.summary,
-                tags=item.tags,
-                status=item.status.value,
-                sourceType=item.source_type.value if item.source_type else None,
-                createdAt=item.created_at,
-                confirmedAt=item.confirmed_at,
-            )
-            for item in items
-        ],
+        items=response_items,
         pagination=PaginationInfo(
             cursor=next_cursor,
             hasMore=has_more,
         ),
     )
+

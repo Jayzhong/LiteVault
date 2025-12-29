@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient, TagResponse, TagsListResponse, isUsingRealApi } from '@/lib/api/client';
 import type { Tag } from '@/lib/types';
 
@@ -19,6 +19,7 @@ interface UseTagsResult {
     refetch: () => void;
     createTag: (name: string) => Promise<void>;
     renameTag: (id: string, name: string) => Promise<void>;
+    updateTagColor: (id: string, color: string) => Promise<void>;
     deleteTag: (id: string) => Promise<void>;
     isCreating: boolean;
 }
@@ -31,6 +32,7 @@ function parseTag(tag: TagResponse): Tag {
         usageCount: tag.usageCount,
         lastUsed: tag.lastUsed ? new Date(tag.lastUsed) : null,
         createdAt: new Date(tag.createdAt),
+        color: tag.color ?? '#6B7280',
     };
 }
 
@@ -40,13 +42,13 @@ function parseTag(tag: TagResponse): Tag {
 export function useTags(params?: UseTagsParams): UseTagsResult {
     const queryClient = useQueryClient();
 
-    // Query for fetching tags
     const {
         data,
         isLoading,
         isError,
         error,
         refetch,
+        isFetching,
     } = useQuery({
         queryKey: ['tags', params],
         queryFn: async () => {
@@ -57,6 +59,7 @@ export function useTags(params?: UseTagsParams): UseTagsResult {
         },
         enabled: isUsingRealApi,
         staleTime: 30000,
+        placeholderData: keepPreviousData, // Keep previous data during refetch
     });
 
     // Create mutation
@@ -83,6 +86,14 @@ export function useTags(params?: UseTagsParams): UseTagsResult {
         },
     });
 
+    // Update color mutation
+    const updateColorMutation = useMutation({
+        mutationFn: ({ id, color }: { id: string; color: string }) => apiClient.updateTagColor(id, color),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tags'] });
+        },
+    });
+
     const tags: Tag[] = data?.tags.map(parseTag) ?? [];
 
     return {
@@ -97,6 +108,9 @@ export function useTags(params?: UseTagsParams): UseTagsResult {
         },
         renameTag: async (id: string, name: string) => {
             await renameMutation.mutateAsync({ id, name });
+        },
+        updateTagColor: async (id: string, color: string) => {
+            await updateColorMutation.mutateAsync({ id, color });
         },
         deleteTag: async (id: string) => {
             await deleteMutation.mutateAsync(id);

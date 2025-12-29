@@ -4,15 +4,12 @@ import { Sidebar } from './Sidebar';
 import { MobileHeader } from './MobileHeader';
 import { Toaster } from '@/components/ui/sonner';
 import { AppProvider } from '@/lib/store/AppContext';
-import { useClerkTokenSetup } from '@/lib/hooks/useClerkTokenSetup';
 
 interface AppShellProps {
     children: React.ReactNode;
 }
 
 function AppShellInner({ children }: AppShellProps) {
-    // Set up Clerk token for API client
-    useClerkTokenSetup();
 
     return (
         <div className="flex h-screen flex-col md:flex-row bg-background">

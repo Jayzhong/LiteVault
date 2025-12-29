@@ -5,7 +5,9 @@
 export {
     apiClient,
     isUsingRealApi,
+    isUsingClerkAuth,
     generateIdempotencyKey,
+    setTokenGetter,
     type ApiError,
     type CreateItemResponse,
     type PendingItemsResponse,

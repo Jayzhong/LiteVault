@@ -60,6 +60,14 @@ def get_tag_repository(session: DbSession):
     return SQLAlchemyTagRepository(session)
 
 
+def get_item_tag_repository(session: DbSession):
+    """Get item_tag repository with shared session."""
+    from app.infrastructure.persistence.repositories.item_tag_repository_impl import (
+        SQLAlchemyItemTagRepository,
+    )
+    return SQLAlchemyItemTagRepository(session)
+
+
 async def get_current_user(
     request: Request,
     session: DbSession,

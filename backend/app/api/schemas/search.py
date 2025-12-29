@@ -3,13 +3,15 @@
 from datetime import datetime
 from pydantic import BaseModel
 
+from app.api.schemas.items import TagInItem
+
 
 class SearchResultItem(BaseModel):
     """Item in search results."""
     id: str
     title: str | None
     summary: str | None
-    tags: list[str]
+    tags: list[TagInItem]
     sourceType: str | None
     confirmedAt: datetime | None
     createdAt: datetime

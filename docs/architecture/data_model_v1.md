@@ -159,7 +159,7 @@ CREATE INDEX idx_items_raw_text_trgm ON items USING GIN (raw_text gin_trgm_ops);
 
 ### 3.3 `tags`
 
-Stores user-created tags.
+Stores user-created tags. Supports soft-delete via `deleted_at` column.
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
@@ -167,15 +167,24 @@ Stores user-created tags.
 | `user_id` | UUID | No | - | Owner reference |
 | `name` | VARCHAR(50) | No | - | Display name (preserved case) |
 | `name_lower` | VARCHAR(50) | No | - | Lowercase for uniqueness |
+| `color` | VARCHAR(7) | No | '#6B7280' | Hex color code |
 | `usage_count` | INT | No | 0 | Number of items using tag |
 | `last_used` | TIMESTAMPTZ | Yes | - | Last time tag was applied |
 | `created_at` | TIMESTAMPTZ | No | NOW() | Creation time |
+| `updated_at` | TIMESTAMPTZ | No | NOW() | Last update time |
+| `deleted_at` | TIMESTAMPTZ | Yes | - | Soft-delete timestamp (NULL = active) |
+
+**Soft-Delete Semantics:**
+- DELETE /tags/:id sets `deleted_at=now()` instead of removing the row
+- GET /tags and all tag displays filter `WHERE deleted_at IS NULL`
+- Creating a tag with same name as a deleted tag "revives" it (same ID preserved)
+- UNIQUE constraint on `(user_id, name_lower)` applies to ALL rows (including deleted)
 
 **Constraints:**
 ```sql
 PRIMARY KEY (id)
 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-UNIQUE (user_id, name_lower)  -- Case-insensitive unique per user
+UNIQUE (user_id, name_lower)  -- Case-insensitive unique per user (includes deleted)
 CHECK (LENGTH(name) >= 1 AND LENGTH(name) <= 50)
 ```
 
@@ -184,10 +193,11 @@ CHECK (LENGTH(name) >= 1 AND LENGTH(name) <= 50)
 -- For tag lookup and uniqueness
 CREATE UNIQUE INDEX idx_tags_user_name ON tags(user_id, name_lower);
 
--- For GET /tags with sorting
-CREATE INDEX idx_tags_user_name_asc ON tags(user_id, name ASC);
-CREATE INDEX idx_tags_user_usage_desc ON tags(user_id, usage_count DESC);
-CREATE INDEX idx_tags_user_lastused_desc ON tags(user_id, last_used DESC NULLS LAST);
+-- For GET /tags with sorting (only active tags)
+CREATE INDEX idx_tags_user_active ON tags(user_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_tags_user_name_asc ON tags(user_id, name ASC) WHERE deleted_at IS NULL;
+CREATE INDEX idx_tags_user_usage_desc ON tags(user_id, usage_count DESC) WHERE deleted_at IS NULL;
+CREATE INDEX idx_tags_user_lastused_desc ON tags(user_id, last_used DESC NULLS LAST) WHERE deleted_at IS NULL;
 ```
 
 ---

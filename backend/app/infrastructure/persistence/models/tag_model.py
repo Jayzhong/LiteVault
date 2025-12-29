@@ -10,7 +10,12 @@ from app.infrastructure.persistence.database import Base
 
 
 class TagModel(Base):
-    """SQLAlchemy model for tags table."""
+    """SQLAlchemy model for tags table.
+    
+    Supports soft-delete via deleted_at column:
+    - NULL = active tag
+    - Non-NULL = soft-deleted timestamp
+    """
 
     __tablename__ = "tags"
 
@@ -31,8 +36,18 @@ class TagModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    color: Mapped[str] = mapped_column(
+        String(7), nullable=False, default="#6B7280"  # Default neutral gray
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     __table_args__ = (
         Index("idx_tags_user_name_lower", "user_id", "name_lower", unique=True),
         Index("idx_tags_user_id", "user_id"),
     )
+

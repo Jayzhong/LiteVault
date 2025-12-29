@@ -6,7 +6,7 @@
  * - NEXT_PUBLIC_USE_CLERK_AUTH: true to use Clerk token auth
  */
 
-import type { Item, ItemStatus } from '@/lib/types';
+import { Item, ItemStatus, TagInItem } from '@/lib/types';
 
 // Environment configuration
 const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === 'true';
@@ -30,7 +30,7 @@ export interface CreateItemResponse {
     rawText: string;
     title: string | null;
     summary: string | null;
-    tags: string[];
+    tags: TagInItem[];
     status: ItemStatus;
     sourceType: string | null;
     createdAt: string;
@@ -48,7 +48,7 @@ export interface UpdateItemResponse {
     status: string;
     title?: string | null;
     summary?: string | null;
-    tags?: string[];
+    tags?: TagInItem[];
     updatedAt: string;
     confirmedAt?: string | null;
 }
@@ -64,7 +64,7 @@ export interface LibraryItemResponse {
     rawText: string;
     title: string | null;
     summary: string | null;
-    tags: string[];
+    tags: TagInItem[];
     status: string;
     sourceType: string | null;
     createdAt: string;
@@ -85,6 +85,7 @@ export interface TagResponse {
     usageCount: number;
     lastUsed: string | null;
     createdAt: string;
+    color?: string; // Hex color code
 }
 
 export interface TagsListResponse {
@@ -97,7 +98,7 @@ export interface SearchResultItem {
     id: string;
     title: string | null;
     summary: string | null;
-    tags: string[];
+    tags: TagInItem[];
     sourceType: string | null;
     confirmedAt: string | null;
     createdAt: string;
@@ -201,6 +202,11 @@ class ApiClient {
             error.requestId = errorData.error.requestId || requestId || 'unknown';
             error.details = errorData.error.details;
             throw error;
+        }
+
+        // Handle 204 No Content (e.g., DELETE responses)
+        if (response.status === 204) {
+            return undefined as T;
         }
 
         return response.json() as Promise<T>;
@@ -341,6 +347,16 @@ class ApiClient {
         return this.fetch<TagResponse>(`/api/v1/tags/${id}`, {
             method: 'PATCH',
             body: JSON.stringify({ name }),
+        });
+    }
+
+    /**
+     * Update tag color (PATCH /tags/:id)
+     */
+    async updateTagColor(id: string, color: string): Promise<TagResponse> {
+        return this.fetch<TagResponse>(`/api/v1/tags/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ color }),
         });
     }
 

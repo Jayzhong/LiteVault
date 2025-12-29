@@ -9,6 +9,8 @@ from app.api.dependencies import (
     get_item_repository,
     get_idempotency_repository,
     get_outbox_repository,
+    get_tag_repository,
+    get_item_tag_repository,
 )
 from app.api.schemas.items import (
     CreateItemRequest,
@@ -17,6 +19,7 @@ from app.api.schemas.items import (
     UpdateItemRequest,
     UpdateItemResponse,
     RetryResponse,
+    TagInItem,
 )
 from app.domain.entities.user import User
 from app.infrastructure.persistence.repositories.item_repository_impl import (
@@ -44,6 +47,28 @@ from app.application.items.dtos import (
 router = APIRouter(prefix="/items", tags=["items"])
 
 
+async def resolve_tags_to_objects(
+    tag_names: list[str], user_id: str, tag_repo
+) -> list[TagInItem]:
+    """Resolve tag names to full TagInItem objects.
+    
+    For each tag name, looks up the tag by name to get id and color.
+    If tag not found (shouldn't happen), creates a minimal object.
+    """
+    if not tag_names or not tag_repo:
+        return []
+    
+    result = []
+    for name in tag_names:
+        tag = await tag_repo.get_by_name(name, user_id)
+        if tag:
+            result.append(TagInItem(id=tag.id, name=tag.name, color=tag.color))
+        else:
+            # Fallback for tags not yet persisted
+            result.append(TagInItem(id="", name=name, color="#6B7280"))
+    return result
+
+
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=ItemResponse)
 async def create_item(
     request: CreateItemRequest,
@@ -53,6 +78,7 @@ async def create_item(
         SQLAlchemyIdempotencyRepository, Depends(get_idempotency_repository)
     ],
     outbox_repo: Annotated[SQLAlchemyOutboxRepository, Depends(get_outbox_repository)],
+    tag_repo: Annotated[object, Depends(get_tag_repository)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> ItemResponse:
     """Create a new item."""
@@ -65,12 +91,16 @@ async def create_item(
             enrich=request.enrich,
         )
     )
+    
+    # Resolve tag names to objects
+    tag_objects = await resolve_tags_to_objects(output.tags, current_user.id, tag_repo)
+    
     return ItemResponse(
         id=output.id,
         rawText=output.raw_text,
         title=output.title,
         summary=output.summary,
-        tags=output.tags,
+        tags=tag_objects,
         status=output.status,
         sourceType=output.source_type,
         enrichmentMode=output.enrichment_mode,
@@ -84,28 +114,31 @@ async def create_item(
 async def get_pending_items(
     current_user: Annotated[User, Depends(get_current_user)],
     item_repo: Annotated[SQLAlchemyItemRepository, Depends(get_item_repository)],
+    tag_repo: Annotated[object, Depends(get_tag_repository)],
 ) -> PendingItemsResponse:
     """Get pending items for current user."""
     use_case = GetPendingItemsUseCase(item_repo)
     output = await use_case.execute(GetPendingItemsInput(user_id=current_user.id))
-    return PendingItemsResponse(
-        items=[
+    
+    items = []
+    for item in output.items:
+        tag_objects = await resolve_tags_to_objects(item.tags, current_user.id, tag_repo)
+        items.append(
             ItemResponse(
                 id=item.id,
                 rawText=item.raw_text,
                 title=item.title,
                 summary=item.summary,
-                tags=item.tags,
+                tags=tag_objects,
                 status=item.status,
                 sourceType=item.source_type,
                 createdAt=item.created_at,
                 updatedAt=item.updated_at,
                 confirmedAt=item.confirmed_at,
             )
-            for item in output.items
-        ],
-        total=output.total,
-    )
+        )
+    
+    return PendingItemsResponse(items=items, total=output.total)
 
 
 @router.get("/{item_id}", response_model=ItemResponse)
@@ -113,18 +146,23 @@ async def get_item(
     item_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
     item_repo: Annotated[SQLAlchemyItemRepository, Depends(get_item_repository)],
+    tag_repo: Annotated[object, Depends(get_tag_repository)],
 ) -> ItemResponse:
     """Get item by ID."""
     use_case = GetItemUseCase(item_repo)
     output = await use_case.execute(
         GetItemInput(user_id=current_user.id, item_id=item_id)
     )
+    
+    # Resolve tag names to objects
+    tag_objects = await resolve_tags_to_objects(output.tags, current_user.id, tag_repo)
+    
     return ItemResponse(
         id=output.id,
         rawText=output.raw_text,
         title=output.title,
         summary=output.summary,
-        tags=output.tags,
+        tags=tag_objects,
         status=output.status,
         sourceType=output.source_type,
         createdAt=output.created_at,
@@ -140,9 +178,11 @@ async def update_item(
     current_user: Annotated[User, Depends(get_current_user)],
     item_repo: Annotated[SQLAlchemyItemRepository, Depends(get_item_repository)],
     outbox_repo: Annotated[SQLAlchemyOutboxRepository, Depends(get_outbox_repository)],
+    tag_repo: Annotated[object, Depends(get_tag_repository)],
+    item_tag_repo: Annotated[object, Depends(get_item_tag_repository)],
 ) -> UpdateItemResponse:
     """Update item (confirm, discard, or edit)."""
-    use_case = UpdateItemUseCase(item_repo, outbox_repo)
+    use_case = UpdateItemUseCase(item_repo, outbox_repo, tag_repo, item_tag_repo)
     output = await use_case.execute(
         UpdateItemInput(
             user_id=current_user.id,
@@ -153,12 +193,16 @@ async def update_item(
             tags=request.tags,
         )
     )
+    
+    # Resolve tag names to objects
+    tag_objects = await resolve_tags_to_objects(output.tags, current_user.id, tag_repo)
+    
     return UpdateItemResponse(
         id=output.id,
         status=output.status,
         title=output.title,
         summary=output.summary,
-        tags=output.tags,
+        tags=tag_objects,
         updatedAt=output.updated_at,
         confirmedAt=output.confirmed_at,
     )

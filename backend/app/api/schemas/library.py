@@ -3,6 +3,8 @@
 from datetime import datetime
 from pydantic import BaseModel
 
+from app.api.schemas.items import TagInItem
+
 
 class LibraryItemResponse(BaseModel):
     """Item in library response."""
@@ -10,7 +12,7 @@ class LibraryItemResponse(BaseModel):
     rawText: str
     title: str | None
     summary: str | None
-    tags: list[str]
+    tags: list[TagInItem]
     status: str
     sourceType: str | None
     createdAt: datetime
