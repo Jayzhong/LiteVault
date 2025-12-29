@@ -35,7 +35,7 @@ export function ItemDetailModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     {type && (
                         <Badge variant="outline" className="w-fit gap-1.5 mb-2">

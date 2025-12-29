@@ -19,6 +19,26 @@
 - Icons + labels (consistent spacing).
 - User card is clickable (optional) but not required in V1.
 
+### Responsive Behavior
+
+#### Breakpoints
+| Breakpoint | Width | Navigation |
+|------------|-------|------------|
+| Mobile | < 768px | Top bar + hamburger drawer |
+| Desktop | ≥ 768px (md) | Left sidebar |
+
+#### Mobile Navigation (< md)
+- **Top bar**: Logo + page title + hamburger button (right)
+- **Drawer**: Sheet sliding from right with nav items + UserCard at bottom
+- Sidebar is hidden on mobile
+
+#### Layout Adaptations
+- Main content padding: `px-4 py-6` on mobile, `p-8` on desktop
+- Modals: `max-h-[85vh] overflow-y-auto` for viewport safety
+- Tags table: Card layout on mobile, table on desktop
+- InputBar: Stacks vertically on mobile (search mode)
+- Tags page controls: Stack filters on mobile
+
 ---
 
 ## 1. Data Model (UI-facing)
@@ -54,7 +74,7 @@
   - Greeting: "Good Morning, Alex."
   - Subtitle: "What is growing in your mind today?"
 - Input Bar
-  - Placeholder: "Plant a thought..."
+  - Placeholder: "Capture your thought..."
   - Primary action button: "Save"
 - Section: PENDING REVIEW
   - Card list (vertical)

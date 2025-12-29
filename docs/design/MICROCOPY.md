@@ -49,7 +49,7 @@ Use these strings verbatim unless a deliberate product change is made.
 - home.subtitle: "What is growing in your mind today?"
 
 ### Capture Input
-- home.capture.placeholder: "Plant a thought..."
+- home.capture.placeholder: "Capture your thought..."
 - home.capture.action: "Save"
 - home.capture.disabled_hint (optional): "Write something to save."
 

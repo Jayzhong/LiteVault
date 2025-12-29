@@ -39,7 +39,7 @@ export function CreateTagModal({ isOpen, onClose, onCreate }: CreateTagModalProp
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{microcopy.tags.createModal.title}</DialogTitle>
                 </DialogHeader>

@@ -52,7 +52,7 @@ export function InsightSummaryModal({ isOpen, onClose, item }: InsightSummaryMod
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <div className="flex items-center gap-2 mb-2">
                             <Badge variant="secondary" className="gap-1.5">

@@ -45,7 +45,7 @@ export function InputBar({
 
     if (mode === 'search') {
         return (
-            <form onSubmit={handleSubmit} className="flex gap-3">
+            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
                 <Input
                     value={text}
                     onChange={(e) => setText(e.target.value)}
@@ -56,7 +56,7 @@ export function InputBar({
                 <Button
                     type="submit"
                     disabled={isButtonDisabled}
-                    className="bg-emerald-600 hover:bg-emerald-700 px-6"
+                    className="bg-emerald-600 hover:bg-emerald-700 px-6 w-full sm:w-auto"
                 >
                     {buttonLabel}
                 </Button>

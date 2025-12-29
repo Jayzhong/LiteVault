@@ -22,7 +22,7 @@ export function Sidebar() {
     if (isAuthPage) return null;
 
     return (
-        <aside className="flex h-full w-64 flex-col border-r border-border bg-card">
+        <aside className="hidden md:flex h-full w-64 flex-col border-r border-border bg-card">
             {/* Brand */}
             <div className="flex items-center gap-3 p-6">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500">

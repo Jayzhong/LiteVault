@@ -35,6 +35,7 @@ export const microcopy = {
         search: 'Search',
         library: 'Library',
         settings: 'Settings',
+        menu: 'Menu',
     },
 
     // Home
@@ -42,7 +43,7 @@ export const microcopy = {
         greeting: 'Good Morning, {name}.',
         subtitle: 'What is growing in your mind today?',
         capture: {
-            placeholder: 'Plant a thought...',
+            placeholder: 'Capture your thought...',
             action: 'Save',
             disabledHint: 'Write something to save.',
         },

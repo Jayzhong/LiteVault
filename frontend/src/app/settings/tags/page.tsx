@@ -98,7 +98,7 @@ export default function TagManagementPage() {
             </nav>
 
             {/* Header */}
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="space-y-2">
                     <h1 className="text-2xl font-semibold text-foreground">
                         {microcopy.tags.title}
@@ -106,11 +106,11 @@ export default function TagManagementPage() {
                     <p className="text-muted-foreground">{microcopy.tags.subtitle}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="hidden sm:flex">
                         <BarChart3 className="h-4 w-4 mr-2" />
                         {microcopy.tags.action.analytics}
                     </Button>
-                    <Button size="sm" onClick={() => setIsCreateModalOpen(true)} disabled={isCreating}>
+                    <Button size="sm" onClick={() => setIsCreateModalOpen(true)} disabled={isCreating} className="flex-1 sm:flex-none">
                         <Plus className="h-4 w-4 mr-2" />
                         {microcopy.tags.action.create}
                     </Button>
@@ -118,8 +118,8 @@ export default function TagManagementPage() {
             </div>
 
             {/* Controls */}
-            <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="relative flex-1 sm:max-w-sm">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         placeholder={microcopy.tags.search.placeholder}
@@ -128,36 +128,38 @@ export default function TagManagementPage() {
                         className="pl-10"
                     />
                 </div>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            {sortBy === 'name' && 'Sort by Name'}
-                            {sortBy === 'usage' && 'Sort by Usage'}
-                            {sortBy === 'lastUsed' && 'Sort by Last Used'}
-                            <ChevronDown className="h-4 w-4 ml-2" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => setSortBy('name')}>
-                            Sort by Name
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSortBy('usage')}>
-                            Sort by Usage
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSortBy('lastUsed')}>
-                            Sort by Last Used
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <div className="flex items-center gap-2">
-                    <Switch
-                        id="show-unused"
-                        checked={showUnused}
-                        onCheckedChange={setShowUnused}
-                    />
-                    <label htmlFor="show-unused" className="text-sm text-muted-foreground">
-                        {microcopy.tags.toggle.unused}
-                    </label>
+                <div className="flex items-center gap-4 flex-wrap">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                {sortBy === 'name' && 'Sort by Name'}
+                                {sortBy === 'usage' && 'Sort by Usage'}
+                                {sortBy === 'lastUsed' && 'Sort by Last Used'}
+                                <ChevronDown className="h-4 w-4 ml-2" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => setSortBy('name')}>
+                                Sort by Name
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSortBy('usage')}>
+                                Sort by Usage
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSortBy('lastUsed')}>
+                                Sort by Last Used
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <div className="flex items-center gap-2">
+                        <Switch
+                            id="show-unused"
+                            checked={showUnused}
+                            onCheckedChange={setShowUnused}
+                        />
+                        <label htmlFor="show-unused" className="text-sm text-muted-foreground">
+                            {microcopy.tags.toggle.unused}
+                        </label>
+                    </div>
                 </div>
             </div>
 
