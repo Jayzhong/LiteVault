@@ -11,7 +11,9 @@ from app.api.dependencies import (
     get_outbox_repository,
     get_tag_repository,
     get_item_tag_repository,
+    get_item_tag_repository,
     get_item_tag_suggestion_repository,
+    get_ai_usage_repository,
 )
 from app.api.schemas.items import (
     CreateItemRequest,
@@ -32,6 +34,9 @@ from app.infrastructure.persistence.repositories.idempotency_repository_impl imp
 )
 from app.infrastructure.persistence.repositories.outbox_repository_impl import (
     SQLAlchemyOutboxRepository,
+)
+from app.infrastructure.persistence.repositories.ai_usage_repository_impl import (
+    SQLAlchemyAIUsageRepository,
 )
 from app.application.items.create_item import CreateItemUseCase
 from app.application.items.get_pending_items import GetPendingItemsUseCase
@@ -80,6 +85,7 @@ async def create_item(
         SQLAlchemyIdempotencyRepository, Depends(get_idempotency_repository)
     ],
     outbox_repo: Annotated[SQLAlchemyOutboxRepository, Depends(get_outbox_repository)],
+    ai_usage_repo: Annotated[SQLAlchemyAIUsageRepository, Depends(get_ai_usage_repository)],
     tag_repo: Annotated[object, Depends(get_tag_repository)],
     item_tag_repo: Annotated[object, Depends(get_item_tag_repository)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -90,7 +96,7 @@ async def create_item(
     If enrich=true (default), queues AI enrichment job.
     """
     use_case = CreateItemUseCase(
-        item_repo, idempotency_repo, outbox_repo, tag_repo, item_tag_repo
+        item_repo, idempotency_repo, outbox_repo, ai_usage_repo, tag_repo, item_tag_repo
     )
     output = await use_case.execute(
         CreateItemInput(
@@ -99,6 +105,7 @@ async def create_item(
             idempotency_key=idempotency_key,
             enrich=request.enrich,
             tag_ids=request.tagIds,
+            user_plan=current_user.plan.value,
         )
     )
     

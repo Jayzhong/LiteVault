@@ -6,6 +6,21 @@ from app.infrastructure.persistence.models.idempotency_model import IdempotencyK
 from app.infrastructure.persistence.models.outbox_model import EnrichmentOutboxModel
 from app.infrastructure.persistence.models.tag_model import TagModel
 from app.infrastructure.persistence.models.item_tag_model import ItemTagModel
+from app.infrastructure.persistence.models.item_tag_suggestion_model import ItemTagSuggestionModel
+from app.infrastructure.persistence.models.ai_usage_model import (
+    AiDailyUsageModel,
+    AiUsageLedgerModel,
+)
 
-__all__ = ["UserModel", "ItemModel", "IdempotencyKeyModel", "EnrichmentOutboxModel", "TagModel", "ItemTagModel"]
+__all__ = [
+    "UserModel",
+    "ItemModel",
+    "IdempotencyKeyModel",
+    "EnrichmentOutboxModel",
+    "TagModel",
+    "ItemTagModel",
+    "ItemTagSuggestionModel",
+    "AiDailyUsageModel",
+    "AiUsageLedgerModel",
+]
 

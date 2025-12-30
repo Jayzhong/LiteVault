@@ -6,6 +6,7 @@
  * - NEXT_PUBLIC_USE_CLERK_AUTH: true to use Clerk token auth
  */
 
+import { toast } from 'sonner';
 import { Item, ItemStatus, TagInItem, SuggestedTag } from '@/lib/types';
 
 // Environment configuration
@@ -203,6 +204,18 @@ class ApiClient {
             error.code = errorData.error.code;
             error.requestId = errorData.error.requestId || requestId || 'unknown';
             error.details = errorData.error.details;
+
+            // Handle Rate Limiting (429) - Global Toast
+            if (response.status === 429) {
+                if (error.code === 'DAILY_QUOTA_EXCEEDED') {
+                    toast.error("Daily AI limit reached. Upgrade to Pro for more.");
+                } else if (error.code === 'CONCURRENCY_LIMIT_EXCEEDED') {
+                    toast.error("Too many requests. Please wait a moment.");
+                } else {
+                    toast.error("Too many requests. Please try again later.");
+                }
+            }
+
             throw error;
         }
 

@@ -373,6 +373,7 @@ Used for: editing fields, confirming, or discarding.
 | `addedTagIds` | string[] | No | Existing tag IDs to associate with item |
 | `title` | string | No | Override AI-generated title |
 | `summary` | string | No | Override AI-generated summary |
+| `originalText` | string | No | Edit original text payload |
 
 **Request — Discard** (from READY_TO_CONFIRM, FAILED, or ARCHIVED)
 ```json
@@ -762,16 +763,65 @@ Backend should emit events for real-time updates:
 
 ---
 
-## 8. Rate Limiting
+## 8. Rate Limiting & Quotas
 
-| Endpoint | Limit |
-|----------|-------|
-| `POST /items` | 10/minute |
-| `POST /search` | 20/minute |
-| `*` (default) | 100/minute |
+### 8.1 API Rate Limits (Burst)
 
-Response when rate limited:
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| `POST /items` | 10 | 1 minute |
+| `POST /search` | 20 | 1 minute |
+| `*` (default) | 100 | 1 minute |
+
+**Response Headers:**
 ```
-HTTP/1.1 429 Too Many Requests
-Retry-After: 60
+X-RateLimit-Limit: 10
+X-RateLimit-Remaining: 9
+X-RateLimit-Reset: 1703682400 (Unix timestamp)
+```
+
+### 8.2 AI Usage Quotas (Daily)
+
+Limits on successful AI enrichment operations per user per UTC day.
+
+| Plan | Daily Quota | Concurrency Limit |
+|------|-------------|-------------------|
+| Free | 2 | 1 |
+| Pro | 10 | 3 |
+
+**Response Headers (on AI-related endpoints):**
+```
+X-AI-Quota-Limit: 50
+X-AI-Quota-Remaining: 49
+X-AI-Quota-Reset: 1703721600 (Seconds until UTC midnight)
+```
+
+**Error Response (Quota Exceeded):**
+```json
+{
+  "error": {
+    "code": "DAILY_QUOTA_EXCEEDED",
+    "message": "You have reached your daily AI enrichment limit (50/day).",
+    "requestId": "req-...",
+    "details": {
+      "limit": 50,
+      "resetAt": "2025-12-31T00:00:00Z"
+    }
+  }
+}
+```
+
+**Error Response (Concurrency Limit):**
+```json
+{
+  "error": {
+    "code": "CONCURRENCY_LIMIT_EXCEEDED",
+    "message": "Too many items are being processed simultaneously.",
+    "requestId": "req-...",
+    "details": {
+      "activeJobs": 3,
+      "limit": 3
+    }
+  }
+}
 ```

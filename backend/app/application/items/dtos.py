@@ -13,6 +13,7 @@ class CreateItemInput:
     idempotency_key: str | None = None
     enrich: bool = True  # If False, skip AI enrichment and save directly to ARCHIVED
     tag_ids: list[str] = field(default_factory=list)  # Tag UUIDs to associate
+    user_plan: str = "free"  # 'free' or 'pro'
 
 
 @dataclass

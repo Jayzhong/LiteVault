@@ -31,6 +31,8 @@ Use these strings verbatim unless a deliberate product change is made.
 - toast.discarded: "Discarded."
 - toast.action_failed: "Something went wrong. Please try again."
 - toast.network_error: "Network error. Please check your connection."
+- toast.quota_exceeded: "Daily AI limit reached. Upgrade to Pro for more."
+- toast.concurrency_exceeded: "Too many requests. Please wait a moment."
 
 ---
 

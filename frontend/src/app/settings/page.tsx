@@ -2,7 +2,6 @@
 
 import { microcopy } from '@/lib/microcopy';
 import { AccountCard } from '@/components/domain/settings/AccountCard';
-import { PreferencesCard } from '@/components/domain/settings/PreferencesCard';
 import { TagsCard } from '@/components/domain/settings/TagsCard';
 
 export default function SettingsPage() {
@@ -19,7 +18,6 @@ export default function SettingsPage() {
             {/* Settings Cards */}
             <div className="space-y-6">
                 <AccountCard />
-                <PreferencesCard />
                 <TagsCard />
             </div>
         </div>

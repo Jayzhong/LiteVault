@@ -5,10 +5,12 @@ from uuid import uuid4
 
 from app.domain.entities.item import Item
 from app.domain.value_objects import ItemStatus, SourceType, EnrichmentMode
-from app.domain.exceptions import ValidationException
 from app.domain.repositories.item_repository import ItemRepository
 from app.domain.repositories.idempotency_repository import IdempotencyRepository
 from app.domain.repositories.outbox_repository import OutboxRepository
+from app.domain.repositories.ai_usage_repository import AIUsageRepository
+from app.domain.services.quota_service import QuotaService, UserPlan
+from app.domain.exceptions import ValidationException, QuotaExceededException, ConcurrencyLimitExceededException
 from app.application.items.dtos import CreateItemInput, CreateItemOutput
 
 
@@ -23,12 +25,14 @@ class CreateItemUseCase:
         item_repo: ItemRepository,
         idempotency_repo: IdempotencyRepository,
         outbox_repo: OutboxRepository,
+        ai_usage_repo: AIUsageRepository,
         tag_repo=None,  # Optional: TagRepository for tag validation
         item_tag_repo=None,  # Optional: ItemTagRepository for associations
     ):
         self.item_repo = item_repo
         self.idempotency_repo = idempotency_repo
         self.outbox_repo = outbox_repo
+        self.ai_usage_repo = ai_usage_repo
         self.tag_repo = tag_repo
         self.item_tag_repo = item_tag_repo
 
@@ -80,9 +84,54 @@ class CreateItemUseCase:
         raw_text = input.raw_text.strip()
 
         if input.enrich:
+            # 1. Check Limits & Charge Quota
+            plan = UserPlan(input.user_plan)
+            
+            # Concurrency Check
+            concurrency_limit = QuotaService.get_concurrency_limit(plan)
+            current_active = await self.item_repo.count_enriching_items(input.user_id)
+            if current_active >= concurrency_limit:
+                raise ConcurrencyLimitExceededException(
+                    "You have too many items being processed simultaneously.",
+                    details={"limit": concurrency_limit, "active": current_active}
+                )
+
+            # Daily Quota Check & Charge
+            daily_limit = QuotaService.get_daily_limit(plan)
+            today = now.date()
+            # Atomically increment and check
+            new_usage = await self.ai_usage_repo.increment_daily_usage(input.user_id, today, 1)
+            
+            if new_usage > daily_limit:
+                # Note: Transaction will rollback automatically on exception, undoing the increment.
+                # Ideally we want to prevent increment if over limit to keep counter accurate-ish,
+                # but 'increment' returns new value, allowing us to fail here.
+                # Since we fail, the API returns 429, transaction rolls back, increment is undone.
+                # Correct behavior: User is NOT CHARGED for blocked request.
+                raise QuotaExceededException(
+                    "You have reached your daily AI enrichment limit.",
+                    details={"limit": daily_limit, "used": new_usage, "resetAt": f"{today}T23:59:59Z"}
+                )
+
+            # Ledger Recording (Idempotency)
+            # Use item ID as resource ID? No, item ID not created yet? 
+            # We generate item ID now.
+            item_id = str(uuid4())
+            
+            # Record ledger (just for audit). If fails (shouldn't if item_id is new), it's fine.
+            # But wait, ledger helps with idempotency of the JOB/Quota.
+            # If client retries with SAME idempotency_key, `execute` returns cached response at start (lines 38-49).
+            # So we don't double charge.
+            await self.ai_usage_repo.record_ledger_entry(
+                user_id=input.user_id,
+                action="ENRICH_ITEM",
+                resource_id=item_id,
+                cost_units=1
+            )
+
             # AI enrichment flow: ENRICHING status, queue job
             item = Item(
-                id=str(uuid4()),
+                id=item_id,
                 user_id=input.user_id,
                 raw_text=raw_text,
                 status=ItemStatus.ENRICHING,

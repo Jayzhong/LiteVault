@@ -30,6 +30,11 @@ class ItemRepository(ABC):
         ...
 
     @abstractmethod
+    async def count_enriching_items(self, user_id: str) -> int:
+        """Count items currently in ENRICHING status for user."""
+        ...
+
+    @abstractmethod
     async def update(self, item: Item) -> Item:
         """Update an existing item."""
         ...

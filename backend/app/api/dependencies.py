@@ -76,6 +76,14 @@ def get_item_tag_suggestion_repository(session: DbSession):
     return SQLAlchemyItemTagSuggestionRepository(session)
 
 
+def get_ai_usage_repository(session: DbSession):
+    """Get AI usage repository with shared session."""
+    from app.infrastructure.persistence.repositories.ai_usage_repository_impl import (
+        SQLAlchemyAIUsageRepository,
+    )
+    return SQLAlchemyAIUsageRepository(session)
+
+
 async def get_current_user(
     request: Request,
     session: DbSession,

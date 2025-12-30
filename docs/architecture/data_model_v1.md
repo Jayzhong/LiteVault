@@ -126,6 +126,8 @@ Stores captured content and enrichment results.
 | `created_at` | TIMESTAMPTZ | No | NOW() | Capture time |
 | `updated_at` | TIMESTAMPTZ | No | NOW() | Last modification |
 | `confirmed_at` | TIMESTAMPTZ | Yes | - | When confirmed to library |
+| `enrichment_mode` | VARCHAR(10) | No | 'AI' | 'AI' or 'MANUAL' |
+| `tags` | ARRAY(VARCHAR) | No | [] | Denormalized tag lookup (V1 source of truth) |
 
 **Constraints:**
 ```sql
@@ -211,6 +213,8 @@ Junction table for items ↔ tags many-to-many relationship.
 | `item_id` | UUID | No | - | Item reference |
 | `tag_id` | UUID | No | - | Tag reference |
 | `created_at` | TIMESTAMPTZ | No | NOW() | When tag was applied |
+
+> **Note:** V1 primarily uses the `items.tags` array for simplified read/write. This junction table is maintained for potential V2 normalization but may not be the primary source of truth in V1.
 
 **Constraints:**
 ```sql
@@ -566,3 +570,49 @@ alembic upgrade head
 | Should idempotency keys be cleaned up? | Yes, cron job to delete expired keys daily |
 | How to handle concurrent enrichment claims? | `FOR UPDATE SKIP LOCKED` ensures single processing |
 | Should we add full-text search index? | V1: Use pg_trgm extension with GIN indexes for fast ILIKE. V2: consider `tsvector` or vector embeddings |
+
+---
+
+### 3.8 `ai_daily_usage`
+
+Tracks daily AI usage totals per user for quota enforcement.
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `user_id` | UUID | No | - | FK to users |
+| `day_date` | DATE | No | - | Usage date (UTC) |
+| `enrichment_count` | INT | No | 0 | Number of enrichments used |
+| `updated_at` | TIMESTAMPTZ | No | NOW() | Last update time |
+| `limit_override` | INT | Yes | - | Custom limit for this user/day |
+
+**Constraints:**
+```sql
+PRIMARY KEY (user_id, day_date)
+FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+```
+
+### 3.9 `ai_usage_ledger`
+
+Immutable ledger of AI usage events for audit and idempotency.
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | UUID | No | gen_random_uuid() | Primary key |
+| `user_id` | UUID | No | - | FK to users |
+| `action` | VARCHAR(50) | No | - | Event type (e.g. 'ENRICH_ITEM') |
+| `resource_id` | UUID | No | - | Reference to item/resource caused charge |
+| `cost_units` | INT | No | 1 | Cost amount |
+| `created_at` | TIMESTAMPTZ | No | NOW() | Event time |
+
+**Constraints:**
+```sql
+PRIMARY KEY (id)
+FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+```
+
+**Indexes:**
+```sql
+-- Dedup index: prevent double-billing
+CREATE UNIQUE INDEX idx_ledger_dedup ON ai_usage_ledger(user_id, resource_id, action);
+```
+

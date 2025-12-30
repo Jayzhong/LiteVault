@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { microcopy } from '@/lib/microcopy';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { X, Plus, Check, Loader2 } from 'lucide-react';
 import { useTagSearch } from '@/lib/hooks/useTagSearch';
 import { apiClient, isUsingRealApi } from '@/lib/api/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAppContext } from '@/lib/store/AppContext';
+import { TAG_COLORS } from '@/components/domain/tags/TagColorPicker';
 
 interface TagPickerProps {
     /** Currently selected tags */
@@ -46,12 +48,30 @@ export function TagPicker({
     const [searchQuery, setSearchQuery] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const queryClient = useQueryClient();
+    const { tags: contextTags } = useAppContext();
 
     // Debounced backend tag search (only when popover is open)
     const { tags: searchedTags, isLoading } = useTagSearch(searchQuery, {
         enabled: isOpen,
         debounceMs: 300,
     });
+
+    // Resolve tag metadata (color) from multiple sources
+    const tagMetadata = useMemo(() => {
+        const map = new Map<string, { color: string }>();
+
+        // 1. Context tags (highest priority for stable colors)
+        contextTags.forEach(t => map.set(t.name.toLowerCase(), { color: t.color || TAG_COLORS[0].hex }));
+
+        // 2. Searched tags (fresh from API)
+        searchedTags.forEach(t => map.set(t.name.toLowerCase(), { color: t.color || TAG_COLORS[0].hex }));
+
+        return map;
+    }, [contextTags, searchedTags]);
+
+    const getTagColor = (tagName: string) => {
+        return tagMetadata.get(tagName.toLowerCase())?.color || TAG_COLORS[0].hex;
+    };
 
     // Focus input when popover opens
     useEffect(() => {
@@ -65,21 +85,24 @@ export function TagPicker({
     }, [isOpen]);
 
     // Combine searched tags with selected tags and availableTags (deduped)
-    // Priority: searched tags from API, then availableTags for initial load, then selected
-    const allTags = [
-        ...new Set([
-            ...searchedTags.map((t) => t.name),
-            ...availableTags,
-            ...selectedTags,
-        ]),
-    ];
+    const allTags = useMemo(() => {
+        return [
+            ...new Set([
+                ...searchedTags.map((t) => t.name),
+                ...availableTags,
+                ...selectedTags,
+            ]),
+        ];
+    }, [searchedTags, availableTags, selectedTags]);
 
     // Filter tags based on search query (client-side filter of combined list)
-    const filteredTags = searchQuery.trim()
-        ? allTags.filter((tag) =>
-            tag.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        : allTags;
+    const filteredTags = useMemo(() => {
+        return searchQuery.trim()
+            ? allTags.filter((tag) =>
+                tag.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            : allTags;
+    }, [allTags, searchQuery]);
 
     // Check if search query matches an existing tag (for create option)
     const exactMatch = allTags.some(
@@ -108,9 +131,9 @@ export function TagPicker({
                     await apiClient.createTag(newTag);
                     // Invalidate tags cache to update Settings > Tags list
                     queryClient.invalidateQueries({ queryKey: ['tags'] });
+                    // Also refresh app context tags if needed (usually happens via query invalidation)
                 } catch (error) {
                     console.error('Failed to persist tag:', error);
-                    // Still add to selection even if API fails
                 }
             }
             onChange([...selectedTags, newTag]);
@@ -125,6 +148,14 @@ export function TagPicker({
         }
     };
 
+    // Helper to determine text color based on background luminance (simplified)
+    // For now, most palette colors are dark enough for white text, except maybe yellow/amber?
+    // Using simple white for now as per design system patterns
+    const badgeStyle = (name: string) => ({
+        backgroundColor: getTagColor(name),
+        color: '#FFFFFF',
+    });
+
     return (
         <div className="space-y-2">
             {/* Selected Tags Display */}
@@ -132,13 +163,13 @@ export function TagPicker({
                 {selectedTags.map((tag) => (
                     <Badge
                         key={tag}
-                        variant="secondary"
-                        className="gap-1.5 pr-1.5"
+                        style={badgeStyle(tag)}
+                        className="gap-1.5 pr-1.5 hover:opacity-90 transition-opacity border-transparent"
                     >
                         {tag}
                         <button
                             onClick={(e) => handleRemoveTag(tag, e)}
-                            className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                            className="ml-1 rounded-full p-0.5 hover:bg-white/20"
                             aria-label={`Remove ${tag}`}
                         >
                             <X className="h-3 w-3" />
@@ -177,7 +208,7 @@ export function TagPicker({
                         </div>
 
                         {/* Tag List */}
-                        <div className="max-h-40 overflow-y-auto space-y-1">
+                        <div className="max-h-56 overflow-y-auto space-y-1">
                             {filteredTags.length === 0 && !searchQuery.trim() && !isLoading && (
                                 <p className="text-sm text-muted-foreground py-2 text-center">
                                     {microcopy.tagPicker.noResults}
@@ -192,6 +223,8 @@ export function TagPicker({
 
                             {filteredTags.map((tag) => {
                                 const isSelected = selectedTags.includes(tag);
+                                const color = getTagColor(tag);
+
                                 return (
                                     <button
                                         key={tag}
@@ -199,11 +232,17 @@ export function TagPicker({
                                         className={cn(
                                             'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-left',
                                             'hover:bg-muted transition-colors',
-                                            isSelected && 'bg-emerald-50 text-emerald-700'
+                                            isSelected && 'bg-muted'
                                         )}
                                     >
-                                        {isSelected && <Check className="h-3 w-3 shrink-0" />}
-                                        <span className={cn(!isSelected && 'ml-5')}>{tag}</span>
+                                        <div
+                                            className="h-3 w-3 rounded-full shrink-0"
+                                            style={{ backgroundColor: color }}
+                                        />
+                                        <span className={cn('flex-1 truncate', isSelected && 'font-medium')}>
+                                            {tag}
+                                        </span>
+                                        {isSelected && <Check className="h-3 w-3 shrink-0 text-muted-foreground" />}
                                     </button>
                                 );
                             })}
@@ -212,10 +251,12 @@ export function TagPicker({
                             {allowCreate && searchQuery.trim() && !exactMatch && (
                                 <button
                                     onClick={handleCreateTag}
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-left hover:bg-muted text-emerald-600"
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-left hover:bg-muted text-emerald-600 group"
                                 >
                                     <Plus className="h-3 w-3" />
-                                    {microcopy.tagPicker.createNew.replace('{tag}', searchQuery.trim())}
+                                    <span>
+                                        Create <span className="font-medium">"{searchQuery.trim()}"</span>
+                                    </span>
                                 </button>
                             )}
                         </div>

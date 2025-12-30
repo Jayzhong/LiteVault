@@ -1,6 +1,6 @@
 """SQLAlchemy Item repository implementation."""
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.item import Item
@@ -95,6 +95,15 @@ class SQLAlchemyItemRepository(ItemRepository):
         )
         models = result.scalars().all()
         return [self._to_entity(m) for m in models]
+
+    async def count_enriching_items(self, user_id: str) -> int:
+        """Count items currently in ENRICHING status for user."""
+        stmt = select(func.count()).select_from(ItemModel).where(
+            ItemModel.user_id == user_id,
+            ItemModel.status == ItemStatus.ENRICHING.value
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
 
     async def update(self, item: Item) -> Item:
         """Update an existing item."""

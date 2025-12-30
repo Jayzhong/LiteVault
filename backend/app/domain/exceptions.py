@@ -107,6 +107,21 @@ class RateLimitException(DomainException):
     http_status = 429
 
 
+class QuotaExceededException(DomainException):
+    """Daily AI quota exceeded."""
+
+    code = "DAILY_QUOTA_EXCEEDED"
+    http_status = 429
+
+
+class ConcurrencyLimitExceededException(DomainException):
+    """Concurrent AI job limit exceeded."""
+
+    code = "CONCURRENCY_LIMIT_EXCEEDED"
+    http_status = 429
+
+
+
 # Service Errors (503)
 class AIServiceUnavailableException(DomainException):
     """AI/search backend is down."""
