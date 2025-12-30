@@ -7,7 +7,6 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Stack](https://img.shields.io/badge/stack-Next.js_|_FastAPI_|_Postgres-black)
-![Enrichment](https://img.shields.io/badge/enrichment-Async_AI-purple)
 
 **LiteVault** 是一款专为“先记录，后整理”工作流设计的开源知识管理工具。它通过后台 AI 工作者自动处理打标签和总结等繁琐工作，从而减轻认知负担，同时严格保留用户进行最终确认的控制权。
 

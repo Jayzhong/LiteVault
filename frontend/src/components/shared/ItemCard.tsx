@@ -148,8 +148,8 @@ export function ItemCard({
             onKeyDown={handleKeyDown}
             className={cn(
                 'w-full rounded-xl border bg-card p-4 text-left',
-                'hover:border-emerald-300 hover:bg-card/80 transition-colors',
-                'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2',
+                'hover:border-primary/30 hover:bg-primary/5 transition-all duration-200',
+                'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                 'cursor-pointer',
                 variant === 'destructive' ? 'border-destructive/50' : 'border-border',
                 className

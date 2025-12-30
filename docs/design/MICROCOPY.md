@@ -57,6 +57,7 @@ Use these strings verbatim unless a deliberate product change is made.
 - home.capture.toggle.label: "AI suggestions"
 - home.capture.toggle.on_hint: "AI will suggest title and tags"
 - home.capture.toggle.off_hint: "Save directly to Library"
+- home.capture.toggle.tooltip: "AI enhancement: generate title/summary/suggested tags"
 - home.capture.tag_hint: "Type # to add tags"
 
 ### Pending Review Section
@@ -79,7 +80,7 @@ Use these strings verbatim unless a deliberate product change is made.
 ## Insight / Review Modal (Pending Item)
 - modal.insight.badge: "AI INSIGHT"
 - modal.insight.title: "Insight Summary"
-- modal.insight.tags.add: "+ Add Tag"
+- modal.insight.tags.add: "Add Tag"
 - modal.insight.action.discard: "Discard"
 - modal.insight.action.confirm: "Confirm & Save"
 - modal.insight.action.confirm_loading: "Saving…"
@@ -223,7 +224,7 @@ Use these strings verbatim unless a deliberate product change is made.
 
 ### Actions
 - tags.action.analytics: "Tag Analytics"
-- tags.action.create: "+ Create New Tag"
+- tags.action.create: "Create New Tag"
 
 ### Controls
 - tags.search.placeholder: "Search tags..."

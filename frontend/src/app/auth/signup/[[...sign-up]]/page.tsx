@@ -3,6 +3,7 @@
 import { SignUp } from '@clerk/nextjs';
 import { microcopy } from '@/lib/microcopy';
 import Link from 'next/link';
+import { AppLogo } from '@/components/shared/AppLogo';
 
 export default function SignupPage() {
     return (
@@ -10,14 +11,7 @@ export default function SignupPage() {
             <div className="w-full max-w-md space-y-8 p-8">
                 {/* Logo */}
                 <div className="flex justify-center">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500">
-                            <span className="text-lg font-bold text-white">L</span>
-                        </div>
-                        <span className="text-xl font-semibold text-foreground">
-                            {microcopy.app.name}
-                        </span>
-                    </div>
+                    <AppLogo size="md" />
                 </div>
 
                 {/* Clerk SignUp Component */}

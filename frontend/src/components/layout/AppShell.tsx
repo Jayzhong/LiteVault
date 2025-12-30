@@ -12,7 +12,7 @@ interface AppShellProps {
 function AppShellInner({ children }: AppShellProps) {
 
     return (
-        <div className="flex h-screen flex-col md:flex-row bg-background">
+        <div className="flex h-screen flex-col md:flex-row bg-background text-foreground transition-colors overflow-hidden">
             {/* Mobile: Top header with hamburger */}
             <MobileHeader />
 
@@ -20,8 +20,10 @@ function AppShellInner({ children }: AppShellProps) {
             <Sidebar />
 
             {/* Main content */}
-            <main className="flex-1 overflow-auto">
-                <div className="mx-auto max-w-5xl px-4 py-6 md:p-8">{children}</div>
+            <main className="flex-1 overflow-auto bg-background/50 relative">
+                <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
+                    {children}
+                </div>
             </main>
 
             <Toaster position="bottom-right" />

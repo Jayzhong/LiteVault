@@ -184,26 +184,29 @@
 
 ### Search Mode Behavior (V1)
 Search V1 supports two query modes:
-- **Tag-only mode**: Query starts with `#` → matches tags only
-- **Combined mode**: All other queries → matches text (title/summary/rawText) OR tags
+- **Tag-only mode**: Query starts with `#` → matches tags only.
+- **Combined mode**: All other queries → matches text (title/summary/rawText) OR tags.
 
 ### Layout (V1)
 - Header: "Search"
 - Query bar (top)
   - Placeholder: "Search your vault..."
-  - Helper hint: "Use #tag to search tags only"
-  - Button: "Search"
+  - **Tag Helper Chip**: "# Tag" button inside input (right). Clicking inserts `#` to start tag mode.
+  - Button: "Search" (Primary Mint)
+- **Tag Suggestions**:
+  - Typing `#` opens a popover with suggested tags from the backend.
+  - Selecting a tag inserts it into the query.
 - Results
   - Mode indicator (optional): "Showing tag matches" or "Showing all matches"
   - Simple item cards list (same as Library cards)
   - Pagination (load more)
 
-> **V2 Deferred**: The "Synthesized Answer" and "Evidence" sections are reserved for Search V2 (semantic search with LLM). Not implemented in V1.
+> **V2 Deferred**: The "Synthesized Answer" and "Evidence" sections are reserved for Search V2.
 
 ### Components
-- `<SearchBar placeholder="Search your vault..." />`
-- `<SearchModeHint />` (shows tag search hint)
-- `<SearchResultsList>` (simple item cards, reuses LibraryItemCard)
+- `<SearchBar>` with `endAdornment` for Tag Chip.
+- `<TagSearchPopover>` (inline, triggers on `#`).
+- `<SearchResultsList>` (simple item cards).
 
 ### States
 1) **Empty** (no query submitted)
@@ -339,7 +342,7 @@ Shows full item details for ARCHIVED items.
 - Subtitle: "Organize your knowledge base by renaming, merging, or cleaning up unused tags."
 - Primary actions:
   - "Tag Analytics" (secondary)
-  - "+ Create New Tag" (primary)
+  - "Create New Tag" (primary)
 - Controls row:
   - Search input "Search tags…"
   - Sort dropdown "Sort by Name"

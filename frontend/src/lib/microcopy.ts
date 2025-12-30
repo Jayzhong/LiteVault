@@ -52,6 +52,7 @@ export const microcopy = {
                 label: 'AI suggestions',
                 onHint: 'AI will suggest title and tags',
                 offHint: 'Save directly to Library',
+                tooltip: 'AI enhancement: generate title/summary/suggested tags',
             },
             tagHint: 'Type # to add tags',
         },
@@ -92,7 +93,7 @@ export const microcopy = {
                 add: '+ Add from library',
             },
             tags: {
-                add: '+ Add Tag',
+                add: 'Add Tag',
             },
             action: {
                 discard: 'Discard',
@@ -159,6 +160,7 @@ export const microcopy = {
         query: {
             placeholder: 'Search your vault...',
             hint: 'Use #tag to search tags only',
+            tagChip: '# Tag',
         },
         action: {
             search: 'Search',
@@ -253,7 +255,7 @@ export const microcopy = {
         subtitle: 'Organize your knowledge base by renaming, merging, or cleaning up unused tags.',
         action: {
             analytics: 'Tag Analytics',
-            create: '+ Create New Tag',
+            create: 'Create New Tag',
         },
         search: {
             placeholder: 'Search tags...',

@@ -15,7 +15,7 @@ import { useTagSearch } from '@/lib/hooks/useTagSearch';
 import { apiClient, isUsingRealApi } from '@/lib/api/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/lib/store/AppContext';
-import { TAG_COLORS } from '@/components/domain/tags/TagColorPicker';
+import { TAG_PALETTE, getTagColor } from '@/lib/tag-palette';
 
 interface TagPickerProps {
     /** Currently selected tags */
@@ -26,7 +26,7 @@ interface TagPickerProps {
     onChange: (tags: string[]) => void;
     /** Whether to allow creating new tags */
     allowCreate?: boolean;
-    /** Custom trigger element (defaults to "+ Add Tag" badge) */
+    /** Custom trigger element (defaults to "Add Tag" badge) */
     trigger?: React.ReactNode;
     /** Custom class for the trigger */
     triggerClassName?: string;
@@ -59,18 +59,21 @@ export function TagPicker({
     // Resolve tag metadata (color) from multiple sources
     const tagMetadata = useMemo(() => {
         const map = new Map<string, { color: string }>();
+        const defaultColor = TAG_PALETTE[0].id; // Use ID as default storage
 
         // 1. Context tags (highest priority for stable colors)
-        contextTags.forEach(t => map.set(t.name.toLowerCase(), { color: t.color || TAG_COLORS[0].hex }));
+        contextTags.forEach(t => map.set(t.name.toLowerCase(), { color: t.color || defaultColor }));
 
         // 2. Searched tags (fresh from API)
-        searchedTags.forEach(t => map.set(t.name.toLowerCase(), { color: t.color || TAG_COLORS[0].hex }));
+        searchedTags.forEach(t => map.set(t.name.toLowerCase(), { color: t.color || defaultColor }));
 
         return map;
     }, [contextTags, searchedTags]);
 
-    const getTagColor = (tagName: string) => {
-        return tagMetadata.get(tagName.toLowerCase())?.color || TAG_COLORS[0].hex;
+    // Internal helper to get the *resolved palette color object*
+    const getResolvedColor = (tagName: string) => {
+        const storedColor = tagMetadata.get(tagName.toLowerCase())?.color;
+        return getTagColor(storedColor);
     };
 
     // Focus input when popover opens
@@ -128,10 +131,11 @@ export function TagPicker({
             // Create tag via API if available (upsert returns existing if duplicate)
             if (isUsingRealApi) {
                 try {
+                    // Note: Backend might require a color, or default it. 
+                    // For now we just send the name.
                     await apiClient.createTag(newTag);
                     // Invalidate tags cache to update Settings > Tags list
                     queryClient.invalidateQueries({ queryKey: ['tags'] });
-                    // Also refresh app context tags if needed (usually happens via query invalidation)
                 } catch (error) {
                     console.error('Failed to persist tag:', error);
                 }
@@ -148,13 +152,15 @@ export function TagPicker({
         }
     };
 
-    // Helper to determine text color based on background luminance (simplified)
-    // For now, most palette colors are dark enough for white text, except maybe yellow/amber?
-    // Using simple white for now as per design system patterns
-    const badgeStyle = (name: string) => ({
-        backgroundColor: getTagColor(name),
-        color: '#FFFFFF',
-    });
+    const badgeStyle = (name: string) => {
+        const c = getResolvedColor(name);
+        return {
+            backgroundColor: c.bg,
+            color: c.fg,
+            borderColor: c.border,
+            borderWidth: '1px'
+        };
+    };
 
     return (
         <div className="space-y-2">
@@ -164,12 +170,12 @@ export function TagPicker({
                     <Badge
                         key={tag}
                         style={badgeStyle(tag)}
-                        className="gap-1.5 pr-1.5 hover:opacity-90 transition-opacity border-transparent"
+                        className="gap-1.5 pl-3 pr-2 py-1 rounded-full border-none shadow-sm hover:opacity-90 transition-opacity font-normal"
                     >
                         {tag}
                         <button
                             onClick={(e) => handleRemoveTag(tag, e)}
-                            className="ml-1 rounded-full p-0.5 hover:bg-white/20"
+                            className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 transition-colors"
                             aria-label={`Remove ${tag}`}
                         >
                             <X className="h-3 w-3" />
@@ -183,12 +189,13 @@ export function TagPicker({
                         {trigger || (
                             <button
                                 className={cn(
-                                    'inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 px-3 py-1',
-                                    'text-sm text-muted-foreground hover:bg-muted hover:border-muted-foreground/60 transition-colors',
+                                    'inline-flex items-center gap-1.5 rounded-full border border-dashed border-input bg-muted/30 px-3 py-1',
+                                    'text-sm text-foreground/60 hover:bg-muted hover:text-foreground transition-all',
                                     triggerClassName
                                 )}
                             >
-                                {microcopy.modal.insight.tags.add}
+                                <Plus className="h-3.5 w-3.5" />
+                                <span>{microcopy.modal.insight.tags.add}</span>
                             </button>
                         )}
                     </PopoverTrigger>
@@ -223,7 +230,7 @@ export function TagPicker({
 
                             {filteredTags.map((tag) => {
                                 const isSelected = selectedTags.includes(tag);
-                                const color = getTagColor(tag);
+                                const color = getResolvedColor(tag);
 
                                 return (
                                     <button
@@ -236,8 +243,11 @@ export function TagPicker({
                                         )}
                                     >
                                         <div
-                                            className="h-3 w-3 rounded-full shrink-0"
-                                            style={{ backgroundColor: color }}
+                                            className="h-3 w-3 rounded-full shrink-0 border"
+                                            style={{
+                                                backgroundColor: color.bg,
+                                                borderColor: color.border
+                                            }}
                                         />
                                         <span className={cn('flex-1 truncate', isSelected && 'font-medium')}>
                                             {tag}
@@ -251,7 +261,7 @@ export function TagPicker({
                             {allowCreate && searchQuery.trim() && !exactMatch && (
                                 <button
                                     onClick={handleCreateTag}
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-left hover:bg-muted text-emerald-600 group"
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-left hover:bg-muted text-primary group"
                                 >
                                     <Plus className="h-3 w-3" />
                                     <span>

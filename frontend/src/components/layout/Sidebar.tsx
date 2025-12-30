@@ -6,6 +6,7 @@ import { Home, Search, Library, Settings } from 'lucide-react';
 import { microcopy } from '@/lib/microcopy';
 import { UserCard } from './UserCard';
 import { cn } from '@/lib/utils';
+import { AppLogo } from '@/components/shared/AppLogo';
 
 const navItems = [
     { href: '/', label: microcopy.nav.home, icon: Home },
@@ -24,11 +25,8 @@ export function Sidebar() {
     return (
         <aside className="hidden md:flex h-full w-64 flex-col border-r border-border bg-card">
             {/* Brand */}
-            <div className="flex items-center gap-3 p-6">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500">
-                    <span className="text-sm font-bold text-white">L</span>
-                </div>
-                <span className="text-lg font-semibold text-foreground">{microcopy.app.name}</span>
+            <div className="p-6">
+                <AppLogo />
             </div>
 
             {/* Navigation */}
@@ -46,7 +44,7 @@ export function Sidebar() {
                                     className={cn(
                                         'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                                         isActive
-                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                            ? 'bg-accent text-accent-foreground shadow-sm'
                                             : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                     )}
                                 >

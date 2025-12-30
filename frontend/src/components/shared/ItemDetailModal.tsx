@@ -332,7 +332,7 @@ export function ItemDetailModal({
                         <Button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="bg-emerald-600 hover:bg-emerald-700"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                         >
                             {isSaving
                                 ? microcopy.modal.detail.action.saving
