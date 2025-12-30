@@ -227,7 +227,52 @@ CREATE INDEX idx_item_tags_tag_id ON item_tags(tag_id);
 
 ---
 
-### 3.5 `idempotency_keys`
+### 3.5 `item_tag_suggestions`
+
+Stores AI-generated tag suggestions for items pending review. Suggestions are stored separately from confirmed tags until user accepts them.
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | UUID | No | gen_random_uuid() | Primary key |
+| `user_id` | UUID | No | - | Owner reference |
+| `item_id` | UUID | No | - | Item reference |
+| `source` | VARCHAR(20) | No | 'AI' | Source: 'AI' or 'SYSTEM' |
+| `suggested_name` | VARCHAR(50) | No | - | Display name (preserved case from AI) |
+| `normalized_name` | VARCHAR(50) | No | - | Lowercase for matching/dedup |
+| `confidence` | FLOAT | Yes | - | AI confidence score (optional) |
+| `status` | VARCHAR(20) | No | 'PENDING' | PENDING / ACCEPTED / REJECTED |
+| `created_at` | TIMESTAMPTZ | No | NOW() | Suggestion creation time |
+| `reviewed_at` | TIMESTAMPTZ | Yes | - | When user accepted/rejected |
+| `meta` | JSONB | No | '{}' | Extensible metadata |
+
+**Status Flow:**
+- `PENDING` → initial state from enrichment
+- `ACCEPTED` → user accepted, tag created/revived in tags table
+- `REJECTED` → user rejected, no tag created
+
+**Constraints:**
+```sql
+PRIMARY KEY (id)
+FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+UNIQUE (user_id, item_id, normalized_name)  -- One suggestion per tag name per item
+CHECK (status IN ('PENDING', 'ACCEPTED', 'REJECTED'))
+CHECK (source IN ('AI', 'SYSTEM'))
+```
+
+**Indexes:**
+```sql
+-- For loading suggestions by item
+CREATE INDEX idx_suggestions_item ON item_tag_suggestions(item_id);
+
+-- For user's pending suggestions (review queue)
+CREATE INDEX idx_suggestions_user_pending ON item_tag_suggestions(user_id)
+    WHERE status = 'PENDING';
+```
+
+---
+
+### 3.6 `idempotency_keys`
 
 Stores idempotency keys for `POST /items`.
 
@@ -259,7 +304,7 @@ CREATE INDEX idx_idempotency_expires ON idempotency_keys(expires_at);
 
 ---
 
-### 3.6 `enrichment_outbox`
+### 3.7 `enrichment_outbox`
 
 Transactional outbox for async enrichment jobs. Supports LISTEN/NOTIFY wakeups with fallback polling.
 

@@ -19,6 +19,9 @@ from app.infrastructure.persistence.repositories.item_repository_impl import (
 from app.infrastructure.persistence.repositories.outbox_repository_impl import (
     SQLAlchemyOutboxRepository,
 )
+from app.infrastructure.persistence.repositories.item_tag_suggestion_repository_impl import (
+    SQLAlchemyItemTagSuggestionRepository,
+)
 from app.infrastructure.enrichment.provider_interface import (
     EnrichmentProvider,
     EnrichmentError,
@@ -27,6 +30,7 @@ from app.infrastructure.enrichment.stub_provider import StubAIProvider
 from app.infrastructure.enrichment.job_notify import set_notify_callback, clear_notify_callback
 from app.domain.value_objects import ItemStatus
 from app.domain.repositories.outbox_repository import OutboxJob
+from app.domain.entities.item_tag_suggestion import ItemTagSuggestion, SuggestionSource
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +227,23 @@ class EnrichmentWorker:
                     source_type=result.source_type,
                 )
                 await item_repo.update(item)
+                
+                # Create tag suggestions in separate table
+                if result.suggested_tags:
+                    suggestion_repo = SQLAlchemyItemTagSuggestionRepository(session)
+                    suggestions = [
+                        ItemTagSuggestion.create(
+                            id=str(uuid4()),
+                            user_id=item.user_id,
+                            item_id=item.id,
+                            suggested_name=tag_name,
+                            confidence=None,  # AI provider could return confidence in future
+                            source=SuggestionSource.AI,
+                        )
+                        for tag_name in result.suggested_tags
+                    ]
+                    await suggestion_repo.create_many(suggestions)
+                    logger.info(f"Created {len(suggestions)} tag suggestions for item {job.item_id}")
 
                 # Mark job completed (delete)
                 await outbox_repo.mark_completed(job.id)

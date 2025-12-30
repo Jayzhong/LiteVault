@@ -39,6 +39,7 @@ class Item:
             },
             ItemStatus.ARCHIVED: {
                 "edit": ItemStatus.ARCHIVED,
+                "discard": ItemStatus.DISCARDED,  # Library discard (F1)
             },
             ItemStatus.DISCARDED: {},  # Terminal state
         },
@@ -82,15 +83,20 @@ class Item:
         self,
         title: str,
         summary: str,
-        suggested_tags: list[str],
+        suggested_tags: list[str],  # No longer stored on item; kept for API compatibility
         source_type: SourceType,
     ) -> None:
-        """Mark item as enriched (called by worker)."""
+        """Mark item as enriched (called by worker).
+        
+        Note: suggested_tags are NOT stored on the item. They are stored
+        separately in item_tag_suggestions table by the worker.
+        """
         if self.status != ItemStatus.ENRICHING:
             return  # Silently skip if already transitioned
         self.title = title
         self.summary = summary
-        self.tags = suggested_tags
+        # NOTE: tags are NOT set here - they go to item_tag_suggestions table
+        # self.tags remains empty until user confirms with accepted suggestions
         self.source_type = source_type
         self.status = ItemStatus.READY_TO_CONFIRM
         self.updated_at = datetime.now(timezone.utc)

@@ -27,6 +27,8 @@ export const microcopy = {
         discarded: 'Discarded.',
         actionFailed: 'Something went wrong. Please try again.',
         networkError: 'Network error. Please check your connection.',
+        original_text_saved: 'Original text updated.',
+        original_text_error: "Couldn't save changes. Please try again.",
     },
 
     // Sidebar
@@ -49,8 +51,9 @@ export const microcopy = {
             toggle: {
                 label: 'AI suggestions',
                 onHint: 'AI will suggest title and tags',
-                offHint: 'Save without AI',
+                offHint: 'Save directly to Library',
             },
+            tagHint: 'Type # to add tags',
         },
         pending: {
             title: 'PENDING REVIEW',
@@ -80,6 +83,14 @@ export const microcopy = {
         insight: {
             badge: 'AI INSIGHT',
             title: 'Insight Summary',
+            suggested_tags: {
+                title: 'Suggested by AI',
+                empty: 'No suggestions available',
+            },
+            your_tags: {
+                title: 'Your tags',
+                add: '+ Add from library',
+            },
             tags: {
                 add: '+ Add Tag',
             },
@@ -96,6 +107,12 @@ export const microcopy = {
         },
         // Item Detail Modal (Library/Search)
         detail: {
+            original_text: {
+                title: 'Original Text',
+                edit: 'Edit',
+                save: 'Save changes',
+                cancel: 'Cancel',
+            },
             action: {
                 edit: 'Edit',
                 save: 'Save',

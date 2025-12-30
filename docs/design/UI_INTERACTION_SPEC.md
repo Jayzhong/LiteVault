@@ -73,17 +73,29 @@
 - Hero
   - Greeting: "Good Morning, Alex."
   - Subtitle: "What is growing in your mind today?"
-- Input Bar
-  - Placeholder: "Capture your thought..."
-  - Primary action button: "Save"
+- Capture Section (two-row layout)
+  - Row 1: Textarea + # Tag Button (aligned horizontally)
+  - Row 2: AI Toggle (left) + Save Button (right)
 - Section: PENDING REVIEW
   - Card list (vertical)
 
 ### Components
 - <GreetingHero />
-- <InputBar mode="capture" />
+- Capture Section:
+  - <Textarea /> for content input
+  - <TagPicker /> triggered by # button (reused component)
+  - <Switch /> for AI suggestions toggle
+  - <Button /> for Save action
 - <PendingReviewSection>
   - <PendingCard variant="skeleton/enriching/ready/failed" />
+
+### Tag Picker (# button)
+- Opens TagPicker popover on click
+- Search input with debounced backend search (250-350ms)
+- Shows loading/empty/error states
+- Create new tag option when no exact match
+- Selected tags shown as removable chips in TagPicker
+- Auth gating: redirects to login if not signed in
 
 ### States
 1) Idle (empty input)
@@ -125,9 +137,13 @@
 - Modal title: "Insight Summary"
 - Optional badge: "AI INSIGHT" + model label (e.g. "Gemini 3.0")
 - Body: summary text (editable in edit mode if you support)
-- Tag chips row
-  - removable chips
-  - "+ Add Tag" chip → opens inline input
+- **Suggested by AI section** (for READY_TO_CONFIRM items)
+  - Show AI-suggested tags as selectable chips
+  - Chip states: default (unselected) → accepted (green check) / rejected (red X)
+  - Default state: all suggestions selected for acceptance
+- **Your tags section**
+  - TagPicker to add existing tags from library
+  - Shows selected tags as removable chips
 - Footer actions
   - Left: "Discard" (text button)
   - Right: "Confirm & Save" (primary)
@@ -141,6 +157,10 @@
 ### Confirm flow
 - On click "Confirm & Save"
   - Button shows loading: "Saving…" and disabled
+  - Payload includes:
+    - `acceptedSuggestionIds`: selected AI suggestions
+    - `rejectedSuggestionIds`: deselected AI suggestions
+    - `addedTagIds`: tags added from TagPicker
   - Success: close modal + remove from Pending list + appears in Library
   - Toast: "Saved to Library"
 
@@ -148,14 +168,14 @@
 - Click "Discard"
   - Confirm dialog (recommended):
     - Title: "Discard this item?"
-    - Copy: "You can’t undo this action."
+    - Copy: "You can't undo this action."
     - Actions: Cancel / Discard
   - Success: close modal + remove pending card
   - Toast: "Discarded"
 
 ### Error handling
 - Confirm failed → keep modal open, show inline error under footer:
-  - "Couldn’t save. Please try again."
+  - "Couldn't save. Please try again."
 - Tag update failed → revert optimistic change, show toast
 
 ---
@@ -249,6 +269,30 @@ Search V1 supports two query modes:
 - Click opens Item Detail Modal
 - Optional affordances (present in prototype):
   - Pin icon (if you keep it, define behavior; if not implemented in V1, remove from UI)
+
+### Item Detail Modal (Library/Search)
+Shows full item details for ARCHIVED items.
+
+#### Layout
+- Modal title: Item title (editable)
+- Body sections:
+  - **Summary**: AI-generated summary (read-only display)
+  - **Original Text**: User's original captured text
+    - Read-only by default
+    - "Edit" button reveals textarea with Cancel/Save
+  - **Tags**: Tag chips with ability to add/remove
+- Footer: "Discard" (danger) + "Close"
+
+#### Edit Original Text Flow
+1. User clicks "Edit" next to Original Text
+2. Text becomes editable textarea
+3. Cancel: Reverts to original, returns to read-only
+4. Save:
+   - Button shows spinner: "Saving..."
+   - Calls PATCH /items/:id with `originalText`
+   - Success: Toast "Original text updated.", return to read-only
+   - Error: Toast "Couldn't save changes.", keep editable
+5. Note: Editing does NOT regenerate AI fields (by design)
 
 ---
 

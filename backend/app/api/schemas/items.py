@@ -12,11 +12,21 @@ class TagInItem(BaseModel):
     color: str = "#6B7280"
 
 
+class SuggestedTagInItem(BaseModel):
+    """AI-suggested tag object embedded in item responses."""
+    
+    id: str
+    name: str
+    status: str  # PENDING, ACCEPTED, REJECTED
+    confidence: float | None = None
+
+
 class CreateItemRequest(BaseModel):
     """Request body for POST /items."""
 
     rawText: str = Field(..., min_length=1, max_length=10000)
-    enrich: bool = True  # If False, skip AI enrichment
+    enrich: bool = True  # If False, skip AI enrichment and save directly to ARCHIVED
+    tagIds: list[str] = []  # Tag UUIDs to associate with item (validated on server)
 
 
 class ItemResponse(BaseModel):
@@ -27,6 +37,7 @@ class ItemResponse(BaseModel):
     title: str | None
     summary: str | None
     tags: list[TagInItem]
+    suggestedTags: list[SuggestedTagInItem] = []  # AI-generated tag suggestions
     status: str
     sourceType: str | None
     enrichmentMode: str | None = None  # 'AI' or 'MANUAL'
@@ -43,16 +54,18 @@ class PendingItemsResponse(BaseModel):
 
 
 class UpdateItemRequest(BaseModel):
-    """Request body for PATCH /items/{id}.
-    
-    Note: tags in request is still list[str] (tag names).
-    The response will return full TagInItem objects.
-    """
+    """Request body for PATCH /items/{id}."""
 
     action: str | None = None  # 'confirm' or 'discard'
     title: str | None = None
     summary: str | None = None
-    tags: list[str] | None = None
+    tags: list[str] | None = None  # Legacy: tag names (backward compatible)
+    # New fields for suggestion-based confirm (F2)
+    acceptedSuggestionIds: list[str] = []  # Suggestion IDs to accept
+    rejectedSuggestionIds: list[str] = []  # Suggestion IDs to reject
+    addedTagIds: list[str] = []  # Existing tag IDs to add
+    # New field for edit original text (F1)
+    originalText: str | None = None
 
 
 class UpdateItemResponse(BaseModel):

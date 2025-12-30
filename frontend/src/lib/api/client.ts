@@ -6,7 +6,7 @@
  * - NEXT_PUBLIC_USE_CLERK_AUTH: true to use Clerk token auth
  */
 
-import { Item, ItemStatus, TagInItem } from '@/lib/types';
+import { Item, ItemStatus, TagInItem, SuggestedTag } from '@/lib/types';
 
 // Environment configuration
 const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === 'true';
@@ -31,6 +31,7 @@ export interface CreateItemResponse {
     title: string | null;
     summary: string | null;
     tags: TagInItem[];
+    suggestedTags?: SuggestedTag[];
     status: ItemStatus;
     sourceType: string | null;
     createdAt: string;
@@ -122,6 +123,7 @@ function parseApiItem(item: CreateItemResponse): Item {
         title: item.title,
         summary: item.summary,
         tags: item.tags,
+        suggestedTags: item.suggestedTags || [],
         status: item.status,
         sourceType: item.sourceType as 'NOTE' | 'ARTICLE' | undefined,
         createdAt: new Date(item.createdAt),
@@ -216,9 +218,15 @@ class ApiClient {
      * Create a new item (POST /items)
      * @param rawText - The text content
      * @param idempotencyKey - Optional idempotency key
-     * @param enrich - If true (default), triggers AI enrichment. If false, creates READY_TO_CONFIRM immediately.
+     * @param enrich - If true (default), triggers AI enrichment. If false, saves directly to ARCHIVED.
+     * @param tagIds - Optional array of tag UUIDs to associate (used with enrich=false)
      */
-    async createItem(rawText: string, idempotencyKey?: string, enrich: boolean = true): Promise<Item> {
+    async createItem(
+        rawText: string,
+        idempotencyKey?: string,
+        enrich: boolean = true,
+        tagIds: string[] = []
+    ): Promise<Item> {
         const headers: HeadersInit = {};
         if (idempotencyKey) {
             headers['Idempotency-Key'] = idempotencyKey;
@@ -227,7 +235,7 @@ class ApiClient {
         const response = await this.fetch<CreateItemResponse>('/api/v1/items', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ rawText, enrich }),
+            body: JSON.stringify({ rawText, enrich, tagIds }),
         });
 
         return parseApiItem(response);
@@ -253,17 +261,30 @@ class ApiClient {
      * Confirm item (PATCH /items/:id with action=confirm)
      * Optionally pass title, summary, tags to edit before confirming.
      */
+    /**
+     * Confirm item (PATCH /items/:id with action=confirm)
+     */
     async confirmItem(
         id: string,
-        edits?: { title?: string; summary?: string; tags?: string[] }
+        data?: {
+            title?: string;
+            summary?: string;
+            tags?: string[]; // Legacy: simple tag names
+            acceptedSuggestionIds?: string[];
+            rejectedSuggestionIds?: string[];
+            addedTagIds?: string[];
+        }
     ): Promise<UpdateItemResponse> {
         return this.fetch<UpdateItemResponse>(`/api/v1/items/${id}`, {
             method: 'PATCH',
             body: JSON.stringify({
                 action: 'confirm',
-                title: edits?.title,
-                summary: edits?.summary,
-                tags: edits?.tags,
+                title: data?.title,
+                summary: data?.summary,
+                tags: data?.tags,
+                acceptedSuggestionIds: data?.acceptedSuggestionIds,
+                rejectedSuggestionIds: data?.rejectedSuggestionIds,
+                addedTagIds: data?.addedTagIds,
             }),
         });
     }
@@ -282,9 +303,18 @@ class ApiClient {
      * Update item fields (PATCH /items/:id without action).
      * Used for editing title, summary, tags on archived items.
      */
+    /**
+     * Update item fields (PATCH /items/:id without action).
+     * Used for editing title, summary, tags, originalText on archived items.
+     */
     async updateItem(
         id: string,
-        updates: { title?: string; summary?: string; tags?: string[] }
+        updates: {
+            title?: string;
+            summary?: string;
+            tags?: string[];
+            originalText?: string;
+        }
     ): Promise<UpdateItemResponse> {
         return this.fetch<UpdateItemResponse>(`/api/v1/items/${id}`, {
             method: 'PATCH',

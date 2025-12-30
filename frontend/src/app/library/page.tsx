@@ -14,7 +14,7 @@ import { Search, AlertCircle } from 'lucide-react';
 import type { Item } from '@/lib/types';
 
 export default function LibraryPage() {
-    const { items, isLoading, isFetching, isError, hasMore, fetchNextPage, isFetchingNextPage, refetch } = useLibrary();
+    const { items, isLoading, isFetching, isError, hasMore, fetchNextPage, isFetchingNextPage, refetch, updateItem } = useLibrary();
     const { profile } = useAccountProfile();
     const userTimezone = profile?.preferences?.timezone || 'UTC';
     const [searchQuery, setSearchQuery] = useState('');
@@ -121,7 +121,12 @@ export default function LibraryPage() {
             {/* Timeline Groups */}
             <div className="space-y-8">
                 {groupedItems.map((group) => (
-                    <TimelineGroup key={group.label} label={group.label} items={group.items} />
+                    <TimelineGroup
+                        key={group.label}
+                        label={group.label}
+                        items={group.items}
+                        onItemUpdate={updateItem}
+                    />
                 ))}
             </div>
 

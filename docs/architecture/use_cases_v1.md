@@ -382,6 +382,107 @@ class RetryEnrichmentOutput:
 
 ---
 
+### 2.8 EditOriginalText
+
+**Endpoint:** `PATCH /items/:id` with `originalText` field
+
+**Use Case:** `EditOriginalTextUseCase`
+
+Allows user to edit the original captured text for an archived item. This does NOT trigger AI regeneration of title/summary/tags.
+
+#### Input DTO
+
+```python
+@dataclass
+class EditOriginalTextInput:
+    user_id: str                    # From auth context
+    item_id: str                    # From path param
+    original_text: str              # New text content
+```
+
+#### Output DTO
+
+```python
+@dataclass
+class EditOriginalTextOutput:
+    id: str
+    raw_text: str
+    updated_at: datetime
+```
+
+#### Validations
+
+| Validation | Error Code | HTTP |
+|------------|------------|------|
+| User not authenticated | `UNAUTHORIZED` | 401 |
+| Item not found | `NOT_FOUND` | 404 |
+| Item status ≠ ARCHIVED | `INVALID_STATE_TRANSITION` | 409 |
+| Text empty or too long | `VALIDATION_ERROR` | 400 |
+
+#### Flow
+
+```
+1. Check authentication
+2. Get item by ID and user_id (with row lock)
+3. Validate status == 'ARCHIVED'
+4. Update raw_text field, set updated_at
+5. Return updated item
+```
+
+#### State Transition
+
+None (stays ARCHIVED)
+
+---
+
+### 2.9 ReviewSuggestedTags
+
+**Endpoint:** `PATCH /items/:id` with `action: "confirm"` and suggestion IDs
+
+**Use Case:** Integrated into `ConfirmItemUseCase`
+
+Processes AI-suggested tags during item confirmation.
+
+#### Input DTO
+
+```python
+@dataclass
+class ReviewSuggestedTagsInput:
+    user_id: str                         # From auth context
+    item_id: str                         # From path param
+    accepted_suggestion_ids: list[str]   # Suggestions to accept → create tags
+    rejected_suggestion_ids: list[str]   # Suggestions to reject → mark REJECTED
+    added_tag_ids: list[str]            # Existing tags to associate
+```
+
+#### Flow
+
+```
+1. Under row lock on item:
+   a. Validate status == 'READY_TO_CONFIRM'
+   b. For each accepted_suggestion_id:
+      - Mark suggestion status = 'ACCEPTED', reviewed_at = now()
+      - Upsert tag in tags table (create or revive if soft-deleted)
+      - Create item_tag association
+   c. For each rejected_suggestion_id:
+      - Mark suggestion status = 'REJECTED', reviewed_at = now()
+   d. For each added_tag_id:
+      - Validate tag exists, belongs to user, not deleted
+      - Create item_tag association
+2. Transition item → ARCHIVED
+3. Return confirmed item with tags
+```
+
+#### Validations
+
+| Validation | Error Code | HTTP |
+|------------|------------|------|
+| Suggestion not found | `NOT_FOUND` | 404 |
+| Suggestion belongs to different item | `VALIDATION_ERROR` | 400 |
+| Tag ID not found or deleted | `VALIDATION_ERROR` | 400 |
+
+---
+
 ## 3. Library Module
 
 ### 3.1 GetLibraryItems

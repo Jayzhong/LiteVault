@@ -11,7 +11,8 @@ class CreateItemInput:
     user_id: str
     raw_text: str
     idempotency_key: str | None = None
-    enrich: bool = True  # If False, skip AI enrichment
+    enrich: bool = True  # If False, skip AI enrichment and save directly to ARCHIVED
+    tag_ids: list[str] = field(default_factory=list)  # Tag UUIDs to associate
 
 
 @dataclass
@@ -39,6 +40,16 @@ class GetPendingItemsInput:
 
 
 @dataclass
+class SuggestedTagDto:
+    """DTO for AI-suggested tags."""
+
+    id: str
+    name: str
+    status: str  # PENDING, ACCEPTED, REJECTED
+    confidence: float | None = None
+
+
+@dataclass
 class ItemDto:
     """Item data transfer object."""
 
@@ -46,12 +57,13 @@ class ItemDto:
     raw_text: str
     title: str | None
     summary: str | None
-    tags: list[str]
+    tags: list[str]  # Confirmed tag names (for backward compatibility)
     status: str
     source_type: str | None
     created_at: datetime
     updated_at: datetime
     confirmed_at: datetime | None
+    suggested_tags: list[SuggestedTagDto] = field(default_factory=list)  # AI suggestions
 
 
 @dataclass
@@ -79,7 +91,13 @@ class UpdateItemInput:
     action: str | None = None  # 'confirm' or 'discard'
     title: str | None = None
     summary: str | None = None
-    tags: list[str] | None = None
+    tags: list[str] | None = None  # Legacy: tag names (backward compatible)
+    # New fields for suggestion-based confirm
+    accepted_suggestion_ids: list[str] = field(default_factory=list)
+    rejected_suggestion_ids: list[str] = field(default_factory=list)
+    added_tag_ids: list[str] = field(default_factory=list)  # Existing tag IDs to add
+    # New field for edit original text (F1)
+    original_text: str | None = None
 
 
 @dataclass

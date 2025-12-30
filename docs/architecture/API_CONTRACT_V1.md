@@ -227,14 +227,16 @@ Creates a new item. Optionally triggers async AI enrichment.
 ```json
 {
   "rawText": "string (required, max 10000 chars)",
-  "enrich": true
+  "enrich": true,
+  "tagIds": ["uuid", "uuid"]
 }
 ```
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `rawText` | string | Yes | - | Captured text content |
-| `enrich` | boolean | No | `true` | If true, triggers AI enrichment (ENRICHING). If false, creates READY_TO_CONFIRM immediately. |
+| `enrich` | boolean | No | `true` | If true, triggers AI enrichment (ENRICHING). If false, saves directly to ARCHIVED. |
+| `tagIds` | string[] | No | `[]` | Tag UUIDs to associate with item. Validated: must belong to user and not be deleted. |
 
 **Headers**
 ```
@@ -260,29 +262,33 @@ When `enrich=true` (default):
 }
 ```
 
-When `enrich=false`:
+When `enrich=false` (Direct Save to Library):
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "rawText": "Meeting notes from the product review...",
   "title": "Meeting notes from the product review",
   "summary": null,
-  "tags": [],
-  "status": "READY_TO_CONFIRM",
+  "tags": [{"id": "tag-uuid", "name": "Work", "color": "#3B82F6"}],
+  "status": "ARCHIVED",
   "sourceType": "NOTE",
   "enrichmentMode": "MANUAL",
   "createdAt": "2025-12-27T13:00:00.000Z",
   "updatedAt": "2025-12-27T13:00:00.000Z",
-  "confirmedAt": null
+  "confirmedAt": "2025-12-27T13:00:00.000Z"
 }
 ```
 
-> **Note**: When `enrich=false`, title is auto-generated from the first 60 characters of the first non-empty line. No AI processing occurs.
+> **Note**: When `enrich=false`:
+> - Item is created directly as ARCHIVED (no pending review step)
+> - Title is auto-generated from the first 60 characters of the first non-empty line
+> - `confirmedAt` is set to creation time
+> - Any provided `tagIds` are validated and associated
 
 **Error Cases**
 | Status | Code | Description |
 |--------|------|-------------|
-| 400 | `VALIDATION_ERROR` | rawText empty or too long |
+| 400 | `VALIDATION_ERROR` | rawText empty or too long, or invalid tagIds |
 | 401 | `UNAUTHORIZED` | Missing/invalid auth |
 | 409 | `DUPLICATE_REQUEST` | Idempotency key already used |
 
@@ -324,14 +330,20 @@ Returns items with status `ENRICHING`, `READY_TO_CONFIRM`, or `FAILED`.
   "rawText": "Meeting notes...",
   "title": "Product Review Meeting Notes",
   "summary": "Product review discussing Q1 roadmap...",
-  "tags": ["Meetings", "Product"],
-  "status": "ARCHIVED",
+  "tags": [{"id": "tag-1", "name": "Meetings", "color": "#6B7280"}],
+  "suggestedTags": [
+    {"id": "sug-1", "name": "Q1 Planning", "status": "PENDING", "confidence": 0.92},
+    {"id": "sug-2", "name": "Product", "status": "PENDING", "confidence": 0.87}
+  ],
+  "status": "READY_TO_CONFIRM",
   "sourceType": "NOTE",
   "createdAt": "2025-12-27T13:00:00.000Z",
   "updatedAt": "2025-12-27T13:05:00.000Z",
-  "confirmedAt": "2025-12-27T13:05:00.000Z"
+  "confirmedAt": null
 }
 ```
+
+> **Note**: `suggestedTags` contains AI-generated tag suggestions stored in `item_tag_suggestions` table. For ARCHIVED items, `suggestedTags` shows historical accepted/rejected decisions. For READY_TO_CONFIRM items, it shows PENDING suggestions requiring user review.
 
 **Error Cases**
 | Status | Code | Description |
@@ -344,29 +356,45 @@ Returns items with status `ENRICHING`, `READY_TO_CONFIRM`, or `FAILED`.
 
 Used for: editing fields, confirming, or discarding.
 
-**Request — Confirm**
+**Request — Confirm** (from READY_TO_CONFIRM)
 ```json
 {
   "action": "confirm",
-  "tags": ["Meetings", "Product"]
+  "acceptedSuggestionIds": ["sug-1"],
+  "rejectedSuggestionIds": ["sug-2"],
+  "addedTagIds": ["existing-tag-uuid"]
 }
 ```
 
-**Request — Discard**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `acceptedSuggestionIds` | string[] | No | Suggestion IDs to accept (creates/revives tags) |
+| `rejectedSuggestionIds` | string[] | No | Suggestion IDs to reject |
+| `addedTagIds` | string[] | No | Existing tag IDs to associate with item |
+| `title` | string | No | Override AI-generated title |
+| `summary` | string | No | Override AI-generated summary |
+
+**Request — Discard** (from READY_TO_CONFIRM, FAILED, or ARCHIVED)
 ```json
 {
   "action": "discard"
 }
 ```
 
-**Request — Edit**
+> **Note**: Discard from ARCHIVED status is used for "Library Discard" — removing an item from the library. The item transitions to DISCARDED status and is hidden from all queries.
+
+**Request — Edit** (ARCHIVED items only)
 ```json
 {
   "title": "Updated Title",
   "summary": "Updated summary",
-  "tags": ["NewTag"]
+  "originalText": "Updated original text content...",
+  "addedTagIds": ["tag-uuid"],
+  "removedTagIds": ["tag-uuid-2"]
 }
 ```
+
+> **Note**: Editing `originalText` does NOT trigger AI regeneration. Title, summary, and tags remain unchanged unless explicitly modified.
 
 **Response** `200 OK`
 ```json
@@ -381,7 +409,7 @@ Used for: editing fields, confirming, or discarding.
 **Error Cases**
 | Status | Code | Description |
 |--------|------|-------------|
-| 400 | `INVALID_STATE_TRANSITION` | Cannot confirm item in ENRICHING state |
+| 409 | `INVALID_STATE_TRANSITION` | Cannot confirm/discard item in ENRICHING state |
 | 404 | `NOT_FOUND` | Item does not exist |
 
 ---

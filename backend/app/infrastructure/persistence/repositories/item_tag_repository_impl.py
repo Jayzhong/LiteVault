@@ -25,6 +25,15 @@ class SQLAlchemyItemTagRepository(ItemTagRepository):
         ).on_conflict_do_nothing(index_elements=["item_id", "tag_id"])
         await self.session.execute(stmt)
 
+    async def exists(self, item_id: str, tag_id: str) -> bool:
+        """Check if an association exists."""
+        stmt = select(ItemTagModel).where(
+            ItemTagModel.item_id == item_id,
+            ItemTagModel.tag_id == tag_id
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     async def delete_by_item_id(self, item_id: str) -> None:
         """Delete all tag associations for an item."""
         stmt = delete(ItemTagModel).where(ItemTagModel.item_id == item_id)

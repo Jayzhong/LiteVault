@@ -8,6 +8,17 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { ColoredTagBadge } from '@/components/shared/ColoredTagBadge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +30,7 @@ import { apiClient, isUsingRealApi } from '@/lib/api/client';
 import { useAppContext } from '@/lib/store/AppContext';
 import { toast } from 'sonner';
 import type { Item } from '@/lib/types';
-import { FileText, Link as LinkIcon, Pencil } from 'lucide-react';
+import { FileText, Link as LinkIcon, Pencil, Trash2 } from 'lucide-react';
 
 interface ItemDetailModalProps {
     isOpen: boolean;
@@ -28,6 +39,8 @@ interface ItemDetailModalProps {
     item: Item;
     /** Callback when item is updated */
     onUpdate?: (updatedItem: Item) => void;
+    /** Callback when item is discarded */
+    onDiscard?: (itemId: string) => void;
 }
 
 /**
@@ -40,15 +53,18 @@ export function ItemDetailModal({
     onClose,
     item,
     onUpdate,
+    onDiscard,
 }: ItemDetailModalProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDiscarding, setIsDiscarding] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Edit form state
     const [editTitle, setEditTitle] = useState(item.title || '');
     const [editSummary, setEditSummary] = useState(item.summary || '');
     const [editTags, setEditTags] = useState<string[]>(item.tags.map(t => t.name));
+    const [editOriginalText, setEditOriginalText] = useState(item.rawText);
 
     // Get available tags from AppContext
     const { tags: existingTags } = useAppContext();
@@ -66,6 +82,7 @@ export function ItemDetailModal({
         setEditTitle(item.title || '');
         setEditSummary(item.summary || '');
         setEditTags(item.tags.map(t => t.name));
+        setEditOriginalText(item.rawText);
         setError(null);
         setIsEditing(true);
     };
@@ -85,6 +102,7 @@ export function ItemDetailModal({
                     title: editTitle || undefined,
                     summary: editSummary || undefined,
                     tags: editTags,
+                    originalText: editOriginalText,
                 });
             } else {
                 // Mock delay
@@ -96,6 +114,7 @@ export function ItemDetailModal({
                 ...item,
                 title: editTitle || null,
                 summary: editSummary || null,
+                rawText: editOriginalText,
                 tags: editTags.map(name => ({
                     id: '',
                     name,
@@ -121,6 +140,25 @@ export function ItemDetailModal({
         onClose();
     };
 
+    const handleDiscard = async () => {
+        setIsDiscarding(true);
+        try {
+            if (isUsingRealApi) {
+                await apiClient.discardItem(item.id);
+            } else {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+            toast.success(microcopy.toast.discarded);
+            onDiscard?.(item.id);
+            onClose();
+        } catch (err) {
+            console.error('Failed to discard item:', err);
+            toast.error('Failed to discard item. Please try again.');
+        } finally {
+            setIsDiscarding(false);
+        }
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
@@ -135,15 +173,51 @@ export function ItemDetailModal({
                             )}
                         </div>
                         {canEdit && !isEditing && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleStartEdit}
-                                className="gap-1.5"
-                            >
-                                <Pencil className="h-3.5 w-3.5" />
-                                {microcopy.modal.detail.action.edit}
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleStartEdit}
+                                    className="gap-1.5"
+                                >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                    {microcopy.modal.detail.action.edit}
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="gap-1.5 text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            {microcopy.dialog.discard.confirm}
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>
+                                                {microcopy.dialog.discard.title}
+                                            </AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                {microcopy.dialog.discard.copy}
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>
+                                                {microcopy.dialog.discard.cancel}
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={handleDiscard}
+                                                disabled={isDiscarding}
+                                                className="bg-destructive hover:bg-destructive/90"
+                                            >
+                                                {isDiscarding ? 'Discarding...' : microcopy.dialog.discard.confirm}
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                         )}
                     </div>
                     {!isEditing && (
@@ -201,12 +275,17 @@ export function ItemDetailModal({
                                 />
                             </div>
 
-                            {/* Raw Text (read-only) */}
+                            {/* Original Text (Editable) */}
                             <div className="space-y-2">
-                                <Label className="text-muted-foreground">Original Text</Label>
-                                <div className="prose prose-sm max-w-none text-muted-foreground max-h-40 overflow-y-auto bg-muted/50 p-3 rounded-lg text-sm">
-                                    {item.rawText}
-                                </div>
+                                <Label htmlFor="edit-text" className="text-muted-foreground">Original Text</Label>
+                                <Textarea
+                                    id="edit-text"
+                                    value={editOriginalText}
+                                    onChange={(e) => setEditOriginalText(e.target.value)}
+                                    placeholder="Enter text..."
+                                    rows={8}
+                                    className="resize-y font-mono text-sm leading-relaxed"
+                                />
                             </div>
                         </div>
                     ) : (

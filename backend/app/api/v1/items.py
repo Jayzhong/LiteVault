@@ -11,6 +11,7 @@ from app.api.dependencies import (
     get_outbox_repository,
     get_tag_repository,
     get_item_tag_repository,
+    get_item_tag_suggestion_repository,
 )
 from app.api.schemas.items import (
     CreateItemRequest,
@@ -20,6 +21,7 @@ from app.api.schemas.items import (
     UpdateItemResponse,
     RetryResponse,
     TagInItem,
+    SuggestedTagInItem,
 )
 from app.domain.entities.user import User
 from app.infrastructure.persistence.repositories.item_repository_impl import (
@@ -79,16 +81,24 @@ async def create_item(
     ],
     outbox_repo: Annotated[SQLAlchemyOutboxRepository, Depends(get_outbox_repository)],
     tag_repo: Annotated[object, Depends(get_tag_repository)],
+    item_tag_repo: Annotated[object, Depends(get_item_tag_repository)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> ItemResponse:
-    """Create a new item."""
-    use_case = CreateItemUseCase(item_repo, idempotency_repo, outbox_repo)
+    """Create a new item.
+    
+    If enrich=false, creates item directly as ARCHIVED with provided tags.
+    If enrich=true (default), queues AI enrichment job.
+    """
+    use_case = CreateItemUseCase(
+        item_repo, idempotency_repo, outbox_repo, tag_repo, item_tag_repo
+    )
     output = await use_case.execute(
         CreateItemInput(
             user_id=current_user.id,
             raw_text=request.rawText,
             idempotency_key=idempotency_key,
             enrich=request.enrich,
+            tag_ids=request.tagIds,
         )
     )
     
@@ -115,14 +125,26 @@ async def get_pending_items(
     current_user: Annotated[User, Depends(get_current_user)],
     item_repo: Annotated[SQLAlchemyItemRepository, Depends(get_item_repository)],
     tag_repo: Annotated[object, Depends(get_tag_repository)],
+    suggestion_repo: Annotated[object, Depends(get_item_tag_suggestion_repository)],
 ) -> PendingItemsResponse:
     """Get pending items for current user."""
-    use_case = GetPendingItemsUseCase(item_repo)
+    use_case = GetPendingItemsUseCase(item_repo, suggestion_repo)
     output = await use_case.execute(GetPendingItemsInput(user_id=current_user.id))
     
     items = []
     for item in output.items:
         tag_objects = await resolve_tags_to_objects(item.tags, current_user.id, tag_repo)
+        
+        suggested_tag_objects = [
+            SuggestedTagInItem(
+                id=st.id,
+                name=st.name,
+                status=st.status,
+                confidence=st.confidence,
+            )
+            for st in item.suggested_tags
+        ]
+        
         items.append(
             ItemResponse(
                 id=item.id,
@@ -130,6 +152,7 @@ async def get_pending_items(
                 title=item.title,
                 summary=item.summary,
                 tags=tag_objects,
+                suggestedTags=suggested_tag_objects,
                 status=item.status,
                 sourceType=item.source_type,
                 createdAt=item.created_at,
@@ -147,9 +170,10 @@ async def get_item(
     current_user: Annotated[User, Depends(get_current_user)],
     item_repo: Annotated[SQLAlchemyItemRepository, Depends(get_item_repository)],
     tag_repo: Annotated[object, Depends(get_tag_repository)],
+    suggestion_repo: Annotated[object, Depends(get_item_tag_suggestion_repository)],
 ) -> ItemResponse:
     """Get item by ID."""
-    use_case = GetItemUseCase(item_repo)
+    use_case = GetItemUseCase(item_repo, suggestion_repo)
     output = await use_case.execute(
         GetItemInput(user_id=current_user.id, item_id=item_id)
     )
@@ -157,12 +181,24 @@ async def get_item(
     # Resolve tag names to objects
     tag_objects = await resolve_tags_to_objects(output.tags, current_user.id, tag_repo)
     
+    # Convert suggested tags to response format
+    suggested_tag_objects = [
+        SuggestedTagInItem(
+            id=st.id,
+            name=st.name,
+            status=st.status,
+            confidence=st.confidence,
+        )
+        for st in output.suggested_tags
+    ]
+    
     return ItemResponse(
         id=output.id,
         rawText=output.raw_text,
         title=output.title,
         summary=output.summary,
         tags=tag_objects,
+        suggestedTags=suggested_tag_objects,
         status=output.status,
         sourceType=output.source_type,
         createdAt=output.created_at,
@@ -180,9 +216,12 @@ async def update_item(
     outbox_repo: Annotated[SQLAlchemyOutboxRepository, Depends(get_outbox_repository)],
     tag_repo: Annotated[object, Depends(get_tag_repository)],
     item_tag_repo: Annotated[object, Depends(get_item_tag_repository)],
+    suggestion_repo: Annotated[object, Depends(get_item_tag_suggestion_repository)],
 ) -> UpdateItemResponse:
     """Update item (confirm, discard, or edit)."""
-    use_case = UpdateItemUseCase(item_repo, outbox_repo, tag_repo, item_tag_repo)
+    use_case = UpdateItemUseCase(
+        item_repo, outbox_repo, tag_repo, item_tag_repo, suggestion_repo
+    )
     output = await use_case.execute(
         UpdateItemInput(
             user_id=current_user.id,
@@ -191,6 +230,10 @@ async def update_item(
             title=request.title,
             summary=request.summary,
             tags=request.tags,
+            accepted_suggestion_ids=request.acceptedSuggestionIds,
+            rejected_suggestion_ids=request.rejectedSuggestionIds,
+            added_tag_ids=request.addedTagIds,
+            original_text=request.originalText,
         )
     )
     

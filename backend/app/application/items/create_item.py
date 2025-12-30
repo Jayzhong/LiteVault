@@ -23,10 +23,14 @@ class CreateItemUseCase:
         item_repo: ItemRepository,
         idempotency_repo: IdempotencyRepository,
         outbox_repo: OutboxRepository,
+        tag_repo=None,  # Optional: TagRepository for tag validation
+        item_tag_repo=None,  # Optional: ItemTagRepository for associations
     ):
         self.item_repo = item_repo
         self.idempotency_repo = idempotency_repo
         self.outbox_repo = outbox_repo
+        self.tag_repo = tag_repo
+        self.item_tag_repo = item_tag_repo
 
     async def execute(self, input: CreateItemInput) -> CreateItemOutput:
         """Execute the use case."""
@@ -59,6 +63,18 @@ class CreateItemUseCase:
                 },
             )
 
+        # Validate tag_ids if provided (for direct save)
+        validated_tags = []
+        if input.tag_ids and self.tag_repo:
+            for tag_id in input.tag_ids:
+                tag = await self.tag_repo.get_by_id(tag_id, input.user_id)
+                if tag is None:
+                    raise ValidationException(
+                        f"Tag {tag_id} not found or does not belong to user",
+                        details={"field": "tagIds", "constraint": "valid_tag", "value": tag_id},
+                    )
+                validated_tags.append(tag)
+
         # Create item based on enrich flag
         now = datetime.now(timezone.utc)
         raw_text = input.raw_text.strip()
@@ -79,21 +95,30 @@ class CreateItemUseCase:
             # Queue enrichment job
             await self.outbox_repo.create(item.id)
         else:
-            # Manual flow: READY_TO_CONFIRM immediately, no job
+            # Direct save flow: ARCHIVED immediately, no job
             title = self._generate_manual_title(raw_text)
             item = Item(
                 id=str(uuid4()),
                 user_id=input.user_id,
                 raw_text=raw_text,
                 title=title,
-                status=ItemStatus.READY_TO_CONFIRM,
+                status=ItemStatus.ARCHIVED,
                 source_type=SourceType.NOTE,
                 enrichment_mode=EnrichmentMode.MANUAL,
                 created_at=now,
                 updated_at=now,
+                confirmed_at=now,  # Set confirmed_at for direct save
+                tags=[tag.name for tag in validated_tags],  # Store tag names
             )
             await self.item_repo.create(item)
-            # No outbox job created for manual flow
+
+            # Create tag associations and increment usage
+            if validated_tags and self.item_tag_repo:
+                for tag in validated_tags:
+                    await self.item_tag_repo.create(item.id, tag.id)
+                    if self.tag_repo:
+                        await self.tag_repo.increment_usage(tag.id)
+            # No outbox job created for direct save
 
         # Save idempotency key
         if input.idempotency_key:

@@ -12,6 +12,11 @@ class ItemTagRepository(ABC):
         pass
 
     @abstractmethod
+    async def exists(self, item_id: str, tag_id: str) -> bool:
+        """Check if an association exists."""
+        pass
+
+    @abstractmethod
     async def delete_by_item_id(self, item_id: str) -> None:
         """Delete all tag associations for an item."""
         pass

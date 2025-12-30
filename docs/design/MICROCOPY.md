@@ -54,7 +54,8 @@ Use these strings verbatim unless a deliberate product change is made.
 - home.capture.disabled_hint (optional): "Write something to save."
 - home.capture.toggle.label: "AI suggestions"
 - home.capture.toggle.on_hint: "AI will suggest title and tags"
-- home.capture.toggle.off_hint: "Save without AI"
+- home.capture.toggle.off_hint: "Save directly to Library"
+- home.capture.tag_hint: "Type # to add tags"
 
 ### Pending Review Section
 - home.pending.title: "PENDING REVIEW"
@@ -81,16 +82,23 @@ Use these strings verbatim unless a deliberate product change is made.
 - modal.insight.action.confirm: "Confirm & Save"
 - modal.insight.action.confirm_loading: "Saving…"
 
+### Suggested Tags Section
+- modal.insight.suggested_tags.title: "Suggested by AI"
+- modal.insight.suggested_tags.empty: "No suggestions available"
+- modal.insight.your_tags.title: "Your tags"
+- modal.insight.your_tags.add: "+ Add from library"
+- modal.insight.your_tags.empty: "Add tags from your library"
+
 ### Discard Confirm Dialog
 - dialog.discard.title: "Discard this item?"
-- dialog.discard.copy: "You can’t undo this action."
+- dialog.discard.copy: "You can't undo this action."
 - dialog.discard.cancel: "Cancel"
 - dialog.discard.confirm: "Discard"
 
 ### Save / Confirm Errors
-- modal.insight.error.save_failed: "Couldn’t save. Please try again."
-- modal.insight.error.discard_failed: "Couldn’t discard. Please try again."
-- modal.insight.error.tag_failed: "Couldn’t update tags. Please try again."
+- modal.insight.error.save_failed: "Couldn't save. Please try again."
+- modal.insight.error.discard_failed: "Couldn't discard. Please try again."
+- modal.insight.error.tag_failed: "Couldn't update tags. Please try again."
 
 ---
 
@@ -154,6 +162,23 @@ Use these strings verbatim unless a deliberate product change is made.
 - library.empty.action: "Go to Home"
 - library.error.title: "Couldn’t load your library."
 - library.error.action: "Retry"
+
+### Item Actions
+- library.action.discard: "Discard"
+
+### Edit Original Text
+- library.detail.original_text.title: "Original Text"
+- library.detail.original_text.edit: "Edit"
+- library.detail.original_text.save: "Save changes"
+- library.detail.original_text.cancel: "Cancel"
+- toast.original_text_saved: "Original text updated."
+- toast.original_text_error: "Couldn't save changes. Please try again."
+
+### Library Discard Dialog
+- dialog.library_discard.title: "Discard this item?"
+- dialog.library_discard.copy: "This will remove it from your library. You can't undo this action."
+- dialog.library_discard.cancel: "Cancel"
+- dialog.library_discard.confirm: "Discard"
 
 ---
 

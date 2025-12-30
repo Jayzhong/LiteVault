@@ -83,7 +83,7 @@ async def test_create_item_validation_empty_text(
 async def test_create_item_manual_flow_enrich_false(
     client: AsyncClient, dev_user_headers: dict
 ) -> None:
-    """Test creating item with enrich=false creates READY_TO_CONFIRM immediately."""
+    """Test creating item with enrich=false saves directly to ARCHIVED."""
     response = await client.post(
         "/api/v1/items",
         json={"rawText": "My manual note content", "enrich": False},
@@ -91,19 +91,20 @@ async def test_create_item_manual_flow_enrich_false(
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["status"] == "READY_TO_CONFIRM"
+    assert data["status"] == "ARCHIVED"  # Direct save to library
     assert data["enrichmentMode"] == "MANUAL"
     # Title should be generated from first line
     assert data["title"] == "My manual note content"
     assert data["summary"] is None
     assert data["sourceType"] == "NOTE"
+    assert data["confirmedAt"] is not None  # Should be set for direct save
 
 
 @pytest.mark.asyncio
 async def test_create_item_manual_flow_title_truncation(
     client: AsyncClient, dev_user_headers: dict
 ) -> None:
-    """Test manual flow truncates long first line to 60 chars."""
+    """Test direct save truncates long first line to 60 chars."""
     long_text = "This is a very long first line that exceeds sixty characters and should be truncated\nSecond line"
     response = await client.post(
         "/api/v1/items",
@@ -112,7 +113,7 @@ async def test_create_item_manual_flow_title_truncation(
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["status"] == "READY_TO_CONFIRM"
+    assert data["status"] == "ARCHIVED"  # Direct save to library
     # Title should be truncated with ellipsis
     assert len(data["title"]) <= 60
 
@@ -606,4 +607,84 @@ async def test_confirm_from_failed_returns_409(
     assert data["error"]["details"]["attemptedAction"] == "confirm"
     assert "requestId" in data["error"]
 
+
+# ============================================================================
+# Library Discard Tests (F1)
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_discard_item_from_archived_library_discard(
+    client: AsyncClient, dev_user_headers: dict
+) -> None:
+    """Test discarding item from ARCHIVED -> DISCARDED (library discard F1)."""
+    # Create item directly as ARCHIVED using enrich=false
+    create_response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "Test note in library", "enrich": False},
+        headers=dev_user_headers,
+    )
+    assert create_response.status_code == 201
+    item_id = create_response.json()["id"]
+    assert create_response.json()["status"] == "ARCHIVED"
+    
+    # Verify it appears in library
+    library_response = await client.get(
+        "/api/v1/library",
+        headers=dev_user_headers,
+    )
+    library_ids = [item["id"] for item in library_response.json()["items"]]
+    assert item_id in library_ids
+    
+    # Discard from ARCHIVED (library discard)
+    response = await client.patch(
+        f"/api/v1/items/{item_id}",
+        json={"action": "discard"},
+        headers=dev_user_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "DISCARDED"
+    
+    # Verify it no longer appears in library
+    library_after = await client.get(
+        "/api/v1/library",
+        headers=dev_user_headers,
+    )
+    library_after_ids = [item["id"] for item in library_after.json()["items"]]
+    assert item_id not in library_after_ids
+
+
+@pytest.mark.asyncio
+async def test_discard_already_discarded_is_idempotent(
+    client: AsyncClient, dev_user_headers: dict, db_session
+) -> None:
+    """Test discarding already discarded item returns success (idempotent)."""
+    from sqlalchemy import update
+    from app.infrastructure.persistence.models.item_model import ItemModel
+    
+    # Create item directly as ARCHIVED
+    create_response = await client.post(
+        "/api/v1/items",
+        json={"rawText": "Test note to discard twice", "enrich": False},
+        headers=dev_user_headers,
+    )
+    item_id = create_response.json()["id"]
+    
+    # First discard
+    response1 = await client.patch(
+        f"/api/v1/items/{item_id}",
+        json={"action": "discard"},
+        headers=dev_user_headers,
+    )
+    assert response1.status_code == 200
+    assert response1.json()["status"] == "DISCARDED"
+    
+    # Second discard (should succeed - idempotent)
+    response2 = await client.patch(
+        f"/api/v1/items/{item_id}",
+        json={"action": "discard"},
+        headers=dev_user_headers,
+    )
+    # Should return 409 since DISCARDED doesn't allow any actions
+    assert response2.status_code == 409
 

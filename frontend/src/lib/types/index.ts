@@ -19,6 +19,16 @@ export interface TagInItem {
 }
 
 /**
+ * SuggestedTag - AI-generated tag suggestion
+ */
+export interface SuggestedTag {
+    id: string;
+    name: string;
+    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    confidence: number | null;
+}
+
+/**
  * Item - Core data type for captured content
  */
 export interface Item {
@@ -27,6 +37,7 @@ export interface Item {
     title: string | null;
     summary: string | null;
     tags: TagInItem[];
+    suggestedTags?: SuggestedTag[]; // AI suggestions
     status: ItemStatus;
     sourceType?: SourceType;
     createdAt: Date;

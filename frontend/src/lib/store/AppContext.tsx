@@ -17,8 +17,15 @@ import { apiClient, isUsingRealApi, generateIdempotencyKey, setTokenGetter, isUs
 interface AppContextType {
     // Pending items
     pendingItems: Item[];
-    addPendingItem: (rawText: string, enrich?: boolean) => Promise<void>;
-    confirmItem: (id: string, edits?: { title?: string; summary?: string; tags?: string[] }) => Promise<void>;
+    addPendingItem: (rawText: string, enrich?: boolean, tagIds?: string[]) => Promise<void>;
+    confirmItem: (id: string, data?: {
+        title?: string;
+        summary?: string;
+        tags?: string[];
+        acceptedSuggestionIds?: string[];
+        rejectedSuggestionIds?: string[];
+        addedTagIds?: string[];
+    }) => Promise<void>;
     discardItem: (id: string) => Promise<void>;
     retryItem: (id: string) => Promise<void>;
 
@@ -65,7 +72,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
     const [tags, setTags] = useState<Tag[]>([]);
     const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
-    const [aiSuggestionsEnabled, setAiSuggestionsEnabled] = useState(true);
+    const [aiSuggestionsEnabled, setAiSuggestionsEnabled] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -169,7 +176,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, [isAuthReady, isSignedIn]);
 
     // Add a new pending item
-    const addPendingItem = useCallback(async (rawText: string, enrich?: boolean) => {
+    // When enrich=false, item goes directly to ARCHIVED with optional tags
+    const addPendingItem = useCallback(async (rawText: string, enrich?: boolean, tagIds?: string[]) => {
         // Use passed enrich value, or fall back to aiSuggestionsEnabled preference
         const shouldEnrich = enrich ?? aiSuggestionsEnabled;
 
@@ -179,7 +187,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 setIsLoading(true);
                 clearError();
                 const idempotencyKey = generateIdempotencyKey();
-                const item = await apiClient.createItem(rawText, idempotencyKey, shouldEnrich);
+                const item = await apiClient.createItem(rawText, idempotencyKey, shouldEnrich, tagIds ?? []);
+
+                // If direct save (enrich=false), item is ARCHIVED - don't add to pending
+                if (!shouldEnrich) {
+                    // Item goes directly to library, no pending state
+                    return;
+                }
+
                 setPendingItems((prev) => [item, ...prev]);
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'Failed to save item';
@@ -229,9 +244,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Confirm an item (move to library)
     const confirmItem = useCallback(
-        async (id: string, edits?: { title?: string; summary?: string; tags?: string[] }) => {
-            // Convert string[] to TagInItem[] for internal state
-            const tagObjects: import('@/lib/types').TagInItem[] | undefined = edits?.tags?.map(name => ({
+        async (id: string, data?: {
+            title?: string;
+            summary?: string;
+            tags?: string[];
+            acceptedSuggestionIds?: string[];
+            rejectedSuggestionIds?: string[];
+            addedTagIds?: string[];
+        }) => {
+            // Convert string[] to TagInItem[] for internal state (legacy/mock support)
+            const tagObjects: import('@/lib/types').TagInItem[] | undefined = data?.tags?.map(name => ({
                 id: '',
                 name,
                 color: '#6B7280',
@@ -241,7 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 try {
                     setIsLoading(true);
                     clearError();
-                    await apiClient.confirmItem(id, edits);
+                    await apiClient.confirmItem(id, data);
                     // Remove from pending
                     const item = pendingItems.find((i) => i.id === id);
                     if (item) {

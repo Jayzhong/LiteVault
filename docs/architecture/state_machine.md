@@ -27,7 +27,7 @@ stateDiagram-v2
     
     DRAFT --> SAVING: Click "Save"
     SAVING --> ENRICHING: POST /items (enrich=true)
-    SAVING --> READY_TO_CONFIRM: POST /items (enrich=false)
+    SAVING --> ARCHIVED: POST /items (enrich=false, direct save)
     SAVING --> DRAFT: POST /items failed (network)
     
     ENRICHING --> READY_TO_CONFIRM: Enrichment job success
@@ -39,7 +39,7 @@ stateDiagram-v2
     FAILED --> ENRICHING: POST /items/:id/retry
     FAILED --> DISCARDED: PATCH /items/:id (discard)
     
-    ARCHIVED --> [*]
+    ARCHIVED --> DISCARDED: PATCH /items/:id (discard from library)
     DISCARDED --> [*]
 ```
 
@@ -48,7 +48,8 @@ stateDiagram-v2
 | From | To | Trigger | Endpoint |
 |------|-----|---------|----------|
 | DRAFT | SAVING | User clicks Save | (frontend state) |
-| SAVING | ENRICHING | API returns 201 | `POST /items` |
+| SAVING | ENRICHING | API returns 201 (enrich=true) | `POST /items` |
+| SAVING | ARCHIVED | API returns 201 (enrich=false) | `POST /items` |
 | SAVING | DRAFT | API error | (frontend state) |
 | ENRICHING | READY_TO_CONFIRM | Async job success | (backend job) |
 | ENRICHING | FAILED | Async job error | (backend job) |
@@ -56,6 +57,7 @@ stateDiagram-v2
 | READY_TO_CONFIRM | DISCARDED | User discards | `PATCH /items/:id` action=discard |
 | FAILED | ENRICHING | User retries | `POST /items/:id/retry` |
 | FAILED | DISCARDED | User discards | `PATCH /items/:id` action=discard |
+| ARCHIVED | DISCARDED | User discards from library | `PATCH /items/:id` action=discard |
 
 ### Invalid Transitions
 
@@ -66,7 +68,6 @@ These transitions should return `409 INVALID_STATE_TRANSITION`:
 | ENRICHING | confirm | Must wait for enrichment |
 | ENRICHING | discard | Must wait for enrichment |
 | ARCHIVED | confirm | Already archived |
-| ARCHIVED | discard | Already archived |
 | DISCARDED | * | Terminal state |
 
 ### Async Enrichment Job Behavior
@@ -87,8 +88,12 @@ These transitions should return `409 INVALID_STATE_TRANSITION`:
 │  │  ASYNC JOB (background)                           │  │
 │  │  - Extract title from rawText                     │  │
 │  │  - Generate summary via AI                        │  │
-│  │  - Suggest tags via AI                            │  │
+│  │  - Suggest tags via AI → item_tag_suggestions     │  │
 │  │  - Detect sourceType (NOTE/ARTICLE)               │  │
+│  │                                                   │  │
+│  │  NOTE: Tags are stored as PENDING suggestions,    │  │
+│  │  NOT in the tags table. Tags table is only        │  │
+│  │  populated when user accepts during confirm.      │  │
 │  └───────────────────────────────────────────────────┘  │
 │                    │                │                   │
 │               Success              Failure              │
@@ -97,6 +102,14 @@ These transitions should return `409 INVALID_STATE_TRANSITION`:
 │          READY_TO_CONFIRM        FAILED                │
 └─────────────────────────────────────────────────────────┘
 ```
+
+### Confirm Behavior (READY_TO_CONFIRM → ARCHIVED)
+
+When user confirms an item:
+1. **Accepted Suggestions**: Create/revive tags in `tags` table, create `item_tags` associations
+2. **Rejected Suggestions**: Mark as REJECTED, no tags created
+3. **Manual Tags**: Associate existing tags from `addedTagIds`
+4. Transition item to ARCHIVED with `confirmed_at = NOW()`
 
 ### Retry Behavior
 

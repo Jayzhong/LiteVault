@@ -16,6 +16,7 @@ interface UseLibraryResult {
     fetchNextPage: () => void;
     isFetchingNextPage: boolean;
     refetch: () => void;
+    updateItem: (item: Item) => void;
 }
 
 // Parse API response to Item format
@@ -85,6 +86,22 @@ export function useLibrary(): UseLibraryResult {
     // We want to report loading if we are waiting for auth OR if the query is actually loading.
     const effectiveIsLoading = (isPending && !isError) || (!isAuthReady && isUsingRealApi);
 
+    const updateItem = (updatedItem: Item) => {
+        // Optimistically update the cache
+        queryClient.setQueryData<any>(['library'], (oldData: any) => {
+            if (!oldData) return oldData;
+            return {
+                ...oldData,
+                pages: oldData.pages.map((page: any) => ({
+                    ...page,
+                    items: page.items.map((item: any) =>
+                        item.id === updatedItem.id ? { ...item, ...updatedItem } : item
+                    ),
+                })),
+            };
+        });
+    };
+
     return {
         items,
         isLoading: effectiveIsLoading,
@@ -95,6 +112,7 @@ export function useLibrary(): UseLibraryResult {
         fetchNextPage: () => fetchNextPage(),
         isFetchingNextPage,
         refetch: () => refetch(),
+        updateItem,
     };
 }
 

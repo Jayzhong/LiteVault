@@ -7,9 +7,10 @@ import type { Item } from '@/lib/types';
 interface TimelineGroupProps {
     label: string;
     items: Item[];
+    onItemUpdate?: (item: Item) => void;
 }
 
-export function TimelineGroup({ label, items }: TimelineGroupProps) {
+export function TimelineGroup({ label, items, onItemUpdate }: TimelineGroupProps) {
     return (
         <div className="space-y-3">
             {/* Group Label */}
@@ -20,7 +21,11 @@ export function TimelineGroup({ label, items }: TimelineGroupProps) {
             {/* Items */}
             <div className="space-y-2">
                 {items.map((item) => (
-                    <LibraryItemCard key={item.id} item={item} />
+                    <LibraryItemCard
+                        key={item.id}
+                        item={item}
+                        onUpdate={onItemUpdate}
+                    />
                 ))}
             </div>
         </div>
