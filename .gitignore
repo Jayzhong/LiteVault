@@ -5,7 +5,7 @@
 *.log
 tmp/
 dist/
-build/
+**/build/
 node_modules/
 __pycache__/
 .env
@@ -15,3 +15,16 @@ coverage/
 # Design
 design/prototypes/*.rp
 design/prototypes/*.fig
+
+# Mobile (KMP)
+mobile/.gradle/
+mobile/.konan/
+mobile/.kotlin/
+mobile/local.properties
+
+# iOS / Xcode (user-specific)
+mobile/**/xcuserdata/
+mobile/**/*.xcuserstate
+
+# CocoaPods (do not commit Pods)
+mobile/**/Pods/
