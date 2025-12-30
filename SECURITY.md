@@ -11,4 +11,4 @@
 
 Please do not report security vulnerabilities through public GitHub issues.
 
-If you believe you have found a security vulnerability in LiteVault, please report it via email to strict.confidentiality@litevault.app (placeholder).
+If you believe you have found a security vulnerability in LiteVault, please report it via email to cjzhong2008@gmail.com.

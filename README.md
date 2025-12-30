@@ -1,115 +1,139 @@
 # LiteVault
 
-> **Store lightly. Recall instantly.**
+English | [简体中文](./README.zh-CN.md)
+
+> **Capture. Connect. Recall.**
 > A friction-free, AI-enriched second brain for hackers.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Stack](https://img.shields.io/badge/stack-Next.js_15_|_FastAPI_|_Postgres-black)
-![Auth](https://img.shields.io/badge/auth-Clerk-purple)
+![Stack](https://img.shields.io/badge/stack-Next.js_|_FastAPI_|_Postgres-black)
+![Enrichment](https://img.shields.io/badge/enrichment-Async_AI-purple)
 
-**LiteVault** is an open-source knowledge management tool built for the "capture now, organize later" workflow. It uses a background AI worker to clean, tag, and summarize your raw thoughts, but strictly keeps you in the loop for final confirmation.
+**LiteVault** is an open-source knowledge management tool designed for the "capture now, organize later" workflow. It offloads the cognitive load of tagging and summarizing to a background AI worker, while strictly keeping the user in the loop for final confirmation.
+
+---
+
+### Table of Contents
+- [The Loop](#the-loop)
+- [Architecture](#architecture)
+- [Features](#features)
+- [Quickstart](#quickstart)
+- [Configuration](#configuration)
+- [Documentation](#documentation)
+
+---
 
 ## The Loop
 
-1.  **Capture**: Drop a raw note (`#idea needs research`) into the void. Instant 201 Created.
-2.  **Enrich**: Async worker generates a title, summary, and suggested tags via LLM.
-3.  **Review**: You accept/reject the AI's labels. Human-in-the-loop.
-4.  **Library**: A clean timeline of your confirmed knowledge.
-5.  **Search**: Fast lexical search (`#tag` or text) via Postgres `pg_trgm`.
+1.  **Capture**: Drop a rough note (`#idea needs research`) into the void. Instant 201 Created.
+2.  **Enrich**: Background worker extracts metadata, generates a summary, and suggests tags.
+3.  **Review**: You accept or reject the AI's suggestions. **Human-in-the-loop.**
+4.  **Recall**: Search instantly via tags (`#dev`) or fuzzy text match.
 
 ## Architecture
 
-Simplified view of the V1 stack:
+LiteVault separates the capture plane (latency-sensitive) from the enrichment plane (compute-intensive).
 
 ```mermaid
 graph LR
-    User[User] -->|Next.js App Router| FE[Frontend]
-    FE -->|/api/v1| BE[Backend FastAPI]
-    BE -->|SQLAlchemy| DB[(Postgres 15)]
-    BE -->|Events| Outbox[Enrichment Outbox]
+    User -->|Next.js| FE[Frontend App]
+    FE -->|/api/v1| BE[FastAPI Backend]
+    BE -->|Write| DB[(Postgres 15)]
+    BE -->|Event| Outbox[Enrichment Outbox]
     Worker[Async Worker] -->|Poll| Outbox
-    Worker -->|Enrich| LLM[LiteLLM / OpenAI]
+    Worker -->|Enrich| LLM[LLM Provider]
+    Worker -->|Update| DB
 ```
 
-## Features (V1 Current)
+### Item Lifecycle
 
-*   **Zero-Friction Capture**: <200ms API response time.
-*   **AI Enrichment**: Auto-tagging and summarization (Outbox pattern).
-*   **Tag Management**: Soft-deletes, colors, upsert logic, merging.
-*   **Search**: Hybrid mode (Tag-only ` #tag` vs. Combined Text).
-*   **Auth**: Secure access via Clerk (Frontend) + JWT Validation (Backend).
-*   **Quotas**: Rate limiting and daily AI usage caps per user plan.
+State machine enforcing the "Enrichment" -> "Review" -> "Archive" flow (see [State Specs](docs/architecture/state_machine.md)).
 
-## Roadmap & Status
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> SAVING: User saves
+    SAVING --> ENRICHING: Async Job Sched
+    ENRICHING --> READY_TO_CONFIRM: Job Success
+    READY_TO_CONFIRM --> ARCHIVED: User Confirms
+    READY_TO_CONFIRM --> DISCARDED: User Rejects
+    ARCHIVED --> [*]
+```
 
-| Phase | Focus | Status |
-| :--- | :--- | :--- |
-| **V1.0** | Core Capture loop, Auth, Tags, Library | :white_check_mark: Live |
-| **V1.1** | Mobile polish, Exports, Analytics | :construction: In Progress |
-| **V2.0** | Semantic Search (Vector), Clustering | :crystal_ball: Planned |
-| **V3.0** | Knowledge Graph, Spaced Repetition | :crystal_ball: Future |
+## Features
 
-See [Product Requirements (V1)](docs/prd/PRD_LiteVault.en-US.md) for details.
+### :white_check_mark: Current (V1)
+*   **Zero-Latnecy Capture**: Optimistic UI with background processing.
+*   **AI Enrichment**: Auto-summarization and tag suggestions via `litellm`.
+*   **Tag Management**: Upsert logic, soft-deletes, and color coding.
+*   **Hybrid Search**: Tag-based filtering + `pg_trgm` fuzzy text search.
+*   **Auth**: Secure identity via Clerk + Backend JWT validation.
+*   **Quotas**: Daily usage limits for AI features.
+
+### :crystal_ball: Roadmap
+*   **V1.1**: Mobile PWA polish, Data exports, Tag analytics.
+*   **V2.0**: Semantic Search (pgvector) and Automated Clustering.
+*   **V3.0**: Knowledge Graph visualization and Spaced Repetition.
 
 ## Repo Layout
 
 ```
 /LiteVault
-├── /backend        # FastAPI, SQLAlchemy, Alembic, LiteLLM
-├── /frontend       # Next.js 15, shadcn/ui, React Query
-├── /docs           # Canonical documentation
-│   ├── /architecture  # Data models, API contracts
-│   ├── /design        # UI specs, Microcopy
-│   └── /prd           # Product requirements
-└── /docker         # Container config
+├── /backend        # Python/FastAPI (Managed by uv)
+├── /frontend       # TypeScript/Next.js (Managed by npm)
+├── /docs           # Canonical Architecture & PRDs
+└── /docker         # Container definitions
 ```
 
-## Quickstart (Local Dev)
+## Quickstart
 
-### Prereqs
+### Prerequisites
 *   Node.js 18+ & npm
 *   Python 3.11+ & [uv](https://github.com/astral-sh/uv)
-*   Postgres 15+ (local or Docker)
-*   Clerk Account (for auth keys)
+*   Postgres 15+ (Local or Docker)
+*   Clerk Account (Free tier)
 
-### 1. Backend
+### Backend (Port 8000)
 
 ```bash
 cd backend
-cp .env.example .env            # Configure DB_URL and CLERK_KEYS
+cp .env.example .env            # Set DB_URL and CLERK_SECRET_KEY
 uv sync                         # Install dependencies
-uv run alembic upgrade head     # Run migrations
-uv run uvicorn app.main:app --reload --port 8080
+uv run alembic upgrade head     # Run DB migrations
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
-### 2. Frontend
+### Frontend (Port 3000)
 
 ```bash
 cd frontend
-cp .env.example .env.local      # Configure NEXT_PUBLIC_CLERK_KEY
+cp .env.example .env.local      # Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 npm install
 npm run dev
-# Open http://localhost:3000
 ```
 
 ## Configuration
 
-*   **Auth**: Set `AUTH_MODE=clerk` in backend for prod, or `mixed` for dev.
-*   **LLM**: Supports any provider via `litellm`. Set `LLM_PROVIDER=openai` (or `stub` for free testing).
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `AUTH_MODE` | Backend auth strategy | `clerk` (prod) / `mixed` (dev) |
+| `LLM_PROVIDER` | AI Service | `openai` / `anthropic` / `stub` |
+| `DB_URL` | Postgres Connection | `postgresql+asyncpg://...` |
 
 ## Documentation
 
-*   **API Contract**: [RAML/Spec V1](docs/architecture/API_CONTRACT_V1.md)
-*   **Data Model**: [Schema V1](docs/architecture/data_model_v1.md)
-*   **UI/UX Spec**: [Interaction Guide](docs/design/UI_INTERACTION_SPEC.md)
+*   **[API Contract V1](docs/architecture/API_CONTRACT_V1.md)**: Endpoints, DTOs, and Error Codes.
+*   **[Data Model](docs/architecture/data_model_v1.md)**: Schema definitions and relationships.
+*   **[UI Interaction Spec](docs/design/UI_INTERACTION_SPEC.md)**: Frontend behaviors and states.
+*   **[Product Requirements](docs/prd/PRD_LiteVault.en-US.md)**: Product vision and roadmap.
 
 ## Contributing
 
-We like clean code and short PRs. See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming and PR standards.
 
 ## Security
 
-Found a bug? See [SECURITY.md](SECURITY.md).
+Please report vulnerabilities via email. See [SECURITY.md](SECURITY.md).
 
 ## License
 
