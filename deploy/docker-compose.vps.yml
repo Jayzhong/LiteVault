@@ -46,6 +46,8 @@ services:
       args:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?Required}
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-} # Empty = same-origin
+        NEXT_PUBLIC_USE_REAL_API: "true"
+        NEXT_PUBLIC_USE_CLERK_AUTH: "true"
     restart: unless-stopped
     depends_on:
       - backend
