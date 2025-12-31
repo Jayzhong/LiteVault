@@ -51,6 +51,7 @@ services:
       - backend
     environment:
       NODE_ENV: production
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?CLERK_SECRET_KEY required}
     expose:
       - "3000"
 
