@@ -40,6 +40,10 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     )
     
     async with async_session_factory() as session:
+        # Reset AI usage quota to prevent rate limiting across tests
+        from sqlalchemy import text
+        await session.execute(text("DELETE FROM ai_usage_ledger"))
+        await session.commit()
         yield session
     
     # Clean up tables after test
