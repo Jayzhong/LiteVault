@@ -1,21 +1,15 @@
 """Centralized prompt templates for LLM enrichment."""
 
+from app.infrastructure.enrichment.prompt_loader import PromptLoader
 
-ENRICHMENT_SYSTEM_PROMPT = """You are an AI assistant that processes user-submitted text content for a personal knowledge management app called LiteVault.
 
-Your task is to analyze the provided text and generate:
-1. **Title**: A concise, descriptive title (max 100 characters)
-2. **Summary**: A brief summary of key points (max 500 characters)
-3. **Tags**: 3-5 relevant tags for categorization (lowercase, single words or short phrases)
-4. **Source Type**: Either "NOTE" (personal notes, ideas, thoughts) or "ARTICLE" (web content, articles, external sources)
-
-Guidelines:
-- Title should capture the essence of the content
-- Summary should highlight the most important points without being verbose
-- Tags should be relevant keywords that would help find this content later
-- Determine source type based on content style (URLs suggest ARTICLE, personal writing suggests NOTE)
-
-Always respond with valid JSON matching the required schema."""
+def get_system_prompt() -> str:
+    """Get the enrichment system prompt from loader.
+    
+    Returns:
+        The cached system prompt string.
+    """
+    return PromptLoader.get_enrichment_prompt()
 
 
 def build_enrichment_user_prompt(raw_text: str) -> str:
@@ -34,10 +28,11 @@ def build_enrichment_user_prompt(raw_text: str) -> str:
     else:
         truncated_text = raw_text
     
-    return f"""Please analyze the following content and generate a title, summary, tags, and determine the source type.
+    return f"""Analyze this content. Generate title, summary, tags (max 3), and source_type.
+Output in the SAME LANGUAGE as the input text.
 
 ---
 {truncated_text}
 ---
 
-Respond with JSON containing: title, summary, tags (array), and source_type."""
+Respond with JSON: {{"title": "...", "summary": "...", "tags": [...], "source_type": "NOTE|ARTICLE"}}"""

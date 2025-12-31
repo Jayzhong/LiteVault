@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 30
     llm_max_retries: int = 2  # Instructor retry on validation failure
     llm_concurrency: int = 3  # Max concurrent LLM calls
+    llm_system_prompt_path: str = "prompts/enrichment_system.md"  # Path to system prompt
 
     # Logging
     log_level: str = "INFO"
