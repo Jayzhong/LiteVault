@@ -30,7 +30,7 @@
 |----------|----------|---------------------|
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | ✅ | From Clerk dashboard |
 | `CLERK_SECRET_KEY` | ✅ | From Clerk dashboard |
-| `NEXT_PUBLIC_API_BASE_URL` | ✅ | Backend API URL |
+| `NEXT_PUBLIC_API_BASE_URL` | ❌ | Leave empty for same-origin (recommended) |
 
 ---
 

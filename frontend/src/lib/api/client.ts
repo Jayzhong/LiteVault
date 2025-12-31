@@ -12,7 +12,9 @@ import { Item, ItemStatus, TagInItem, SuggestedTag } from '@/lib/types';
 // Environment configuration
 const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === 'true';
 const USE_CLERK_AUTH = process.env.NEXT_PUBLIC_USE_CLERK_AUTH === 'true';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+// Empty string = same-origin (production via reverse proxy)
+// Explicit URL = cross-origin (local dev pointing to backend)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID || 'dev-user-001';
 
 // Error response type from API
