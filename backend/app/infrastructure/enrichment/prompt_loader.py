@@ -47,12 +47,13 @@ class PromptLoader:
         """Load the enrichment system prompt."""
         prompt_path = settings.llm_system_prompt_path
         
-        # Resolve path relative to backend directory
+        # Resolve path relative to working directory (backend root)
         path = Path(prompt_path)
         if not path.is_absolute():
-            # Relative to backend/ directory
-            backend_root = Path(__file__).parent.parent.parent
-            path = backend_root / prompt_path
+            # In Docker: /app is WORKDIR, prompts/ is at /app/prompts
+            # Locally: backend/ is CWD, prompts/ is at backend/prompts
+            # Use CWD which works for both cases
+            path = Path.cwd() / prompt_path
         
         if not path.exists():
             error_msg = f"System prompt file not found: {path}"
