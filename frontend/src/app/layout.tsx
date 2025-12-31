@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LiteVault - Store now, recall later",
+  title: "LiteVault - Capture. Connect. Recall",
   description: "A lightweight knowledge capture and retrieval tool with AI-powered insights",
   icons: {
     icon: [
