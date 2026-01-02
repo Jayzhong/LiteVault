@@ -1,48 +1,54 @@
 package com.lite.vault
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.lite.vault.core.designsystem.theme.AppTheme
+import com.lite.vault.core.navigation.Navigator
+import com.lite.vault.core.navigation.Screen
+import com.lite.vault.domain.usecase.GetSessionUseCase
+import com.lite.vault.feature.auth.LoginScreen
+import com.lite.vault.feature.home.HomeScreen
+import kotlinx.coroutines.launch
+import org.koin.compose.KoinContext
+import org.koin.compose.koinInject
 
-import mobile.composeapp.generated.resources.Res
-import mobile.composeapp.generated.resources.compose_multiplatform
-
+/**
+ * Main App Entry
+ * 
+ * Responsibilities:
+ * - Apply AppTheme
+ * - Check session on boot
+ * - Navigate to Login or Home based on session state
+ * - Render current screen from Navigator
+ */
 @Composable
-@Preview
 fun App() {
-    MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+    KoinContext {
+        AppTheme {
+            val navigator: Navigator = koinInject()
+            val getSessionUseCase: GetSessionUseCase = koinInject()
+            val currentScreen by navigator.currentScreen.collectAsState()
+            
+            // Boot logic: Check session on initial composition
+            LaunchedEffect(Unit) {
+                launch {
+                    val sessionResult = getSessionUseCase()
+                    val hasSession = sessionResult.getOrNull() != null
+                    
+                    if (hasSession) {
+                        navigator.reset(Screen.Home)
+                    } else {
+                        navigator.reset(Screen.Login)
+                    }
                 }
+            }
+            
+            // Render current screen
+            when (currentScreen) {
+                Screen.Login -> LoginScreen(navigator)
+                Screen.Home -> HomeScreen(navigator)
             }
         }
     }

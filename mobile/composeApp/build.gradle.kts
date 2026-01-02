@@ -6,6 +6,10 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
+    // Room/KSP not needed for V1 (only auth flow)
+    // alias(libs.plugins.ksp)
+    // alias(libs.plugins.room)
 }
 
 kotlin {
@@ -29,6 +33,18 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
+
+            // Koin Android
+            implementation(libs.koin.android)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.androidx.lifecycle.viewmodel.savedstate)
+
+            // Ktor OkHttp
+            implementation(libs.ktor.client.okhttp)
+
+            // DataStore
+            implementation(libs.datastore.preferences)
+            implementation("androidx.datastore:datastore-preferences:1.1.2")
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -37,8 +53,35 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
+            implementation(compose.materialIconsExtended)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            
+            // Koin DI
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            
+            // Ktor
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.client.logging)
+            
+            // Kotlinx
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.coroutines.core)
+            
+            // Logging
+            implementation(libs.napier)
+            
+            // Room (will be added later when needed)
+            // implementation(libs.room.runtime)
+            // implementation(libs.sqlite.bundled)
+        }
+        iosMain.dependencies {
+            // Ktor Darwin
+            implementation(libs.ktor.client.darwin)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -60,6 +103,7 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
     }
     buildTypes {

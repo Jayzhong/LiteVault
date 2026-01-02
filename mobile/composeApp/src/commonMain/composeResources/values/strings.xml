@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Identity -->
+    <string name="app_name">LiteVault</string>
+    <string name="app_slogan">Store lightly. Recall instantly.</string>
+    
+    <!-- Login Screen -->
+    <string name="login_email_label">EMAIL</string>
+    <string name="login_email_placeholder">user@litevault.app</string>
+    <string name="login_code_label">VERIFICATION CODE</string>
+    <string name="login_send_code">Send verification code</string>
+    <string name="login_continue">Continue →</string>
+    <string name="login_resend_timer">Resend in %1$s</string>
+    <string name="login_terms">By continuing, you agree to our %1$s and %2$s</string>
+    <string name="login_terms_service">Terms of Service</string>
+    <string name="login_privacy">Privacy Policy</string>
+    
+    <!-- Error Modal -->
+    <string name="error_login_failed_title">Login Failed</string>
+    <string name="error_login_failed_message">Verification code incorrect. Please check your credentials or try again.</string>
+    <string name="error_try_again">Try Again</string>
+    <string name="error_network_title">Network Error</string>
+    <string name="error_network_message">Please check your internet connection and try again.</string>
+    
+    <!-- Home Placeholder -->
+    <string name="home_title">Welcome to LiteVault</string>
+    <string name="home_placeholder">You are logged in!</string>
+    <string name="home_logout">Logout</string>
+</resources>

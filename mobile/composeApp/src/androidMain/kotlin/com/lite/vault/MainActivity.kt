@@ -11,6 +11,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        
+        // Koin is initialized in LiteVaultApplication
+        // initKoin { androidContext(this@MainActivity) }
 
         setContent {
             App()
