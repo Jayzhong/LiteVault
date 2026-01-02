@@ -26,8 +26,8 @@ class EnrichmentSchema(BaseModel):
     tags: list[str] = Field(
         ...,
         min_length=1,
-        max_length=8,
-        description="3-5 relevant tags for categorization"
+        max_length=3,
+        description="1-3 relevant tags for categorization"
     )
     
     source_type: str = Field(
@@ -66,7 +66,7 @@ class EnrichmentSchema(BaseModel):
                 seen.add(tag)
         if not normalized:
             raise ValueError("At least one valid tag is required")
-        return normalized[:8]  # Max 8 tags
+        return normalized[:3]  # Max 3 tags
     
     @field_validator("source_type")
     @classmethod

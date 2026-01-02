@@ -1,0 +1,19 @@
+{
+    "name": "LiteVault",
+    "short_name": "LiteVault",
+    "icons": [
+        {
+            "src": "/brand/favicon/favicon-32x32.png",
+            "sizes": "32x32",
+            "type": "image/png"
+        },
+        {
+            "src": "/brand/favicon/apple-touch-icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ],
+    "theme_color": "#ffffff",
+    "background_color": "#ffffff",
+    "display": "standalone"
+}

@@ -15,12 +15,14 @@ from app.api.v1.library import router as library_router
 from app.api.v1.tags import router as tags_router
 from app.api.v1.search import router as search_router
 from app.infrastructure.enrichment.worker import worker
+from app.infrastructure.enrichment.prompt_loader import PromptLoader
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
+    PromptLoader.load()  # Load and cache system prompts
     await worker.start()
     yield
     # Shutdown
@@ -41,7 +43,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
     app.add_middleware(RequestIdMiddleware)

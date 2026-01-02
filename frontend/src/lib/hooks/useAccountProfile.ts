@@ -61,7 +61,8 @@ export interface UpdatePreferencesInput {
 
 // API configuration
 const USE_REAL_PROFILE = process.env.NEXT_PUBLIC_USE_REAL_PROFILE === 'true';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+// Empty string = same-origin (production via reverse proxy)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 
 /**
  * useAccountProfile - Single source of truth for Settings UI

@@ -17,7 +17,7 @@ from app.infrastructure.enrichment.provider_interface import (
 )
 from app.infrastructure.enrichment.schemas import EnrichmentSchema
 from app.infrastructure.enrichment.prompts import (
-    ENRICHMENT_SYSTEM_PROMPT,
+    get_system_prompt,
     build_enrichment_user_prompt,
 )
 
@@ -55,7 +55,7 @@ class LiteLLMProvider(EnrichmentProvider):
         try:
             # Build messages
             messages = [
-                {"role": "system", "content": ENRICHMENT_SYSTEM_PROMPT},
+                {"role": "system", "content": get_system_prompt()},
                 {"role": "user", "content": build_enrichment_user_prompt(raw_text)},
             ]
             

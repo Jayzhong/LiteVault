@@ -194,7 +194,7 @@ sequenceDiagram
     participant Frontend
     participant Backend
     
-    User->>Frontend: Click "+ Create New Tag"
+    User->>Frontend: Click "Create New Tag"
     Frontend->>Frontend: Open modal
     User->>Frontend: Enter tag name
     User->>Frontend: Click "Create"

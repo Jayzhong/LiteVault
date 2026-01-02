@@ -13,6 +13,9 @@ interface InputBarProps {
     onSubmit: (text: string) => void;
     defaultValue?: string;
     disabled?: boolean;
+    endAdornment?: React.ReactNode;
+    onChange?: (text: string) => void;
+    value?: string;
 }
 
 export function InputBar({
@@ -22,22 +25,34 @@ export function InputBar({
     onSubmit,
     defaultValue = '',
     disabled = false,
+    endAdornment,
+    onChange,
+    value,
 }: InputBarProps) {
-    const [text, setText] = useState(defaultValue);
+    // Internal state for uncontrolled usage, or sync with controlled value
+    const [internalText, setInternalText] = useState(defaultValue);
 
-    // Sync text with defaultValue when it changes (e.g., after hydration)
+    const text = value !== undefined ? value : internalText;
+
+    const handleTextChange = (newText: string) => {
+        setInternalText(newText);
+        onChange?.(newText);
+    };
+
+    // Sync text with defaultValue when it changes (only initially or reset)
     useEffect(() => {
-        if (defaultValue && !text) {
-            setText(defaultValue);
+        if (defaultValue && !text && value === undefined) {
+            setInternalText(defaultValue);
         }
-    }, [defaultValue, text]);
+    }, [defaultValue, text, value]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (text.trim() && !disabled) {
             onSubmit(text.trim());
             if (mode === 'capture') {
-                setText('');
+                setInternalText('');
+                onChange?.('');
             }
         }
     };
@@ -53,17 +68,24 @@ export function InputBar({
     if (mode === 'search') {
         return (
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-                <Input
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder={placeholder}
-                    disabled={disabled}
-                    className="flex-1"
-                />
+                <div className="relative flex-1">
+                    <Input
+                        value={text}
+                        onChange={(e) => handleTextChange(e.target.value)}
+                        placeholder={placeholder}
+                        disabled={disabled}
+                        className={cn("w-full", endAdornment && "pr-20")}
+                    />
+                    {endAdornment && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
+                            {endAdornment}
+                        </div>
+                    )}
+                </div>
                 <Button
                     type="submit"
                     disabled={isButtonDisabled}
-                    className="bg-emerald-600 hover:bg-emerald-700 px-6 w-full sm:w-auto"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 w-full sm:w-auto shadow-sm"
                 >
                     {buttonLabel}
                 </Button>
@@ -75,7 +97,7 @@ export function InputBar({
         <form onSubmit={handleSubmit} className="space-y-3">
             <Textarea
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => handleTextChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
                 disabled={disabled}
@@ -90,7 +112,7 @@ export function InputBar({
                         'px-8',
                         isButtonDisabled
                             ? 'bg-muted text-muted-foreground'
-                            : 'bg-emerald-600 hover:bg-emerald-700'
+                            : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm'
                     )}
                 >
                     {buttonLabel}

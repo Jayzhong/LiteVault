@@ -16,8 +16,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LiteVault - Store now, recall later",
+  title: "LiteVault - Capture. Connect. Recall",
   description: "A lightweight knowledge capture and retrieval tool with AI-powered insights",
+  icons: {
+    icon: [
+      { url: '/brand/favicon/favicon.ico?v=3', sizes: 'any' },
+      { url: '/brand/favicon/favicon-32x32.png?v=3', type: 'image/png' },
+    ],
+    apple: '/brand/favicon/apple-touch-icon.png?v=3',
+  },
+  manifest: '/brand/favicon/site.webmanifest',
 };
 
 export default function RootLayout({

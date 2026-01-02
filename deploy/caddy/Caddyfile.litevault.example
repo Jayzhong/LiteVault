@@ -1,0 +1,51 @@
+# LiteVault Host Caddy Configuration
+# ====================================
+# Add this to your existing Caddy configuration on the VPS.
+# 
+# Example locations:
+#   - /etc/caddy/Caddyfile (append to main file)
+#   - /etc/caddy/conf.d/litevault.caddy (if using import)
+#
+# After adding, reload Caddy:
+#   sudo systemctl reload caddy
+#
+# TLS is automatically handled by the host Caddy via Let's Encrypt.
+# ====================================
+
+# Replace with your actual domain
+litevault.example.com {
+    # Backend API endpoints
+    handle /api/* {
+        reverse_proxy localhost:8000
+    }
+
+    # Health check endpoints (for monitoring)
+    handle /health {
+        reverse_proxy localhost:8000
+    }
+
+    handle /readyz {
+        reverse_proxy localhost:8000
+    }
+
+    # Frontend (Next.js) - default handler
+    handle {
+        reverse_proxy localhost:3000
+    }
+
+    # Compression
+    encode gzip
+
+    # Security headers
+    header {
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-XSS-Protection "1; mode=block"
+    }
+
+    # Optional: Logging
+    # log {
+    #     output file /var/log/caddy/litevault.log
+    # }
+}

@@ -8,25 +8,13 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
-
-// Tag color palette - matches the plan
-const TAG_COLORS = [
-    { name: 'Gray', hex: '#6B7280' },
-    { name: 'Red', hex: '#EF4444' },
-    { name: 'Orange', hex: '#F97316' },
-    { name: 'Amber', hex: '#F59E0B' },
-    { name: 'Green', hex: '#22C55E' },
-    { name: 'Teal', hex: '#14B8A6' },
-    { name: 'Blue', hex: '#3B82F6' },
-    { name: 'Purple', hex: '#8B5CF6' },
-    { name: 'Pink', hex: '#EC4899' },
-];
+import { TAG_PALETTE, getTagColor } from '@/lib/tag-palette';
 
 interface TagColorPickerProps {
-    /** Current color (hex) */
+    /** Current color (ID or hex) */
     color: string;
-    /** Callback when color changes */
-    onChange: (color: string) => void;
+    /** Callback when color changes (returns ID) */
+    onChange: (colorId: string) => void;
     /** Size of the color swatch */
     size?: 'sm' | 'md';
 }
@@ -42,8 +30,11 @@ export function TagColorPicker({
 }: TagColorPickerProps) {
     const [isOpen, setIsOpen] = useState(false);
 
-    const handleSelectColor = (hex: string) => {
-        onChange(hex);
+    // Resolve current color to palette entry for display
+    const currentColor = getTagColor(color);
+
+    const handleSelectColor = (colorId: string) => {
+        onChange(colorId);
         setIsOpen(false);
     };
 
@@ -55,30 +46,38 @@ export function TagColorPicker({
                 <button
                     className={cn(
                         sizeClasses,
-                        'rounded-full ring-offset-background transition-all',
+                        'rounded-full ring-offset-background transition-all border',
                         'hover:ring-2 hover:ring-ring hover:ring-offset-2',
                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                     )}
-                    style={{ backgroundColor: color }}
-                    aria-label="Change color"
+                    style={{
+                        backgroundColor: currentColor.bg,
+                        borderColor: currentColor.border
+                    }}
+                    aria-label={`Change color (current: ${currentColor.name})`}
                 />
             </PopoverTrigger>
             <PopoverContent className="w-auto p-2" align="start">
-                <div className="grid grid-cols-3 gap-1.5">
-                    {TAG_COLORS.map((c) => (
+                <div className="grid grid-cols-5 gap-1.5">
+                    {TAG_PALETTE.map((c) => (
                         <button
-                            key={c.hex}
-                            onClick={() => handleSelectColor(c.hex)}
+                            key={c.id}
+                            onClick={() => handleSelectColor(c.id)}
                             className={cn(
-                                'h-7 w-7 rounded-md transition-all',
+                                'h-7 w-7 rounded-md transition-all border flex items-center justify-center',
                                 'hover:scale-110 hover:ring-2 hover:ring-ring hover:ring-offset-1',
                                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                             )}
-                            style={{ backgroundColor: c.hex }}
+                            style={{
+                                backgroundColor: c.bg,
+                                borderColor: c.border,
+                                color: c.fg
+                            }}
                             aria-label={c.name}
+                            title={c.name}
                         >
-                            {color.toLowerCase() === c.hex.toLowerCase() && (
-                                <Check className="h-4 w-4 mx-auto text-white drop-shadow-sm" />
+                            {(currentColor.id === c.id) && (
+                                <Check className="h-4 w-4" />
                             )}
                         </button>
                     ))}
@@ -87,5 +86,3 @@ export function TagColorPicker({
         </Popover>
     );
 }
-
-export { TAG_COLORS };

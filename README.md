@@ -1,5 +1,5 @@
 # LiteVault
-
+![LiteVault Logo](frontend/public/brand/logo/logo-mark.png)
 English | [简体中文](./README.zh-CN.md)
 
 > **Capture. Connect. Recall.**
@@ -7,7 +7,6 @@ English | [简体中文](./README.zh-CN.md)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Stack](https://img.shields.io/badge/stack-Next.js_|_FastAPI_|_Postgres-black)
-![Enrichment](https://img.shields.io/badge/enrichment-Async_AI-purple)
 
 **LiteVault** is an open-source knowledge management tool designed for the "capture now, organize later" workflow. It offloads the cognitive load of tagging and summarizing to a background AI worker, while strictly keeping the user in the loop for final confirmation.
 

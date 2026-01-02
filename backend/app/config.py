@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 30
     llm_max_retries: int = 2  # Instructor retry on validation failure
     llm_concurrency: int = 3  # Max concurrent LLM calls
+    llm_system_prompt_path: str = "prompts/enrichment_system.md"  # Path to system prompt
 
     # Logging
     log_level: str = "INFO"
@@ -77,7 +78,9 @@ class Settings(BaseSettings):
 
     @property
     def allows_dev_fallback(self) -> bool:
-        """Check if dev auth fallback is allowed."""
+        """Check if dev auth fallback is allowed. Never in production."""
+        if self.env == "production":
+            return False
         return self.auth_mode in (AuthMode.MIXED, AuthMode.DEV)
 
     @property
@@ -87,6 +90,20 @@ class Settings(BaseSettings):
             return []
         return [m.strip() for m in self.llm_fallback_models.split(",") if m.strip()]
 
+    def validate_production_settings(self) -> None:
+        """Validate settings for production environment. Fails fast on misconfiguration."""
+        if self.env == "production":
+            if self.auth_mode != AuthMode.CLERK:
+                raise ValueError(
+                    f"SECURITY ERROR: AUTH_MODE must be 'clerk' in production, got '{self.auth_mode.value}'. "
+                    "Dev bypass is not allowed in production."
+                )
+            if not self.clerk_jwt_issuer or not self.clerk_jwks_url:
+                raise ValueError(
+                    "SECURITY ERROR: CLERK_JWT_ISSUER and CLERK_JWKS_URL must be set in production."
+                )
+
 
 settings = Settings()
+settings.validate_production_settings()
 
