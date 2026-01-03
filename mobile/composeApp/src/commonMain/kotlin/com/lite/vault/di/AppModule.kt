@@ -1,5 +1,6 @@
 package com.lite.vault.di
 
+import com.lite.vault.core.logging.loggingModule
 import com.lite.vault.core.navigation.Navigator
 import com.lite.vault.core.network.createHttpClient
 import com.lite.vault.data.repository.AuthRepositoryImpl
@@ -21,7 +22,7 @@ import org.koin.dsl.module
  */
 fun appModule() = module {
     // Network
-    single { createHttpClient() }
+    single { createHttpClient(get()) }
     
     // Navigation
     single { Navigator() }
@@ -39,7 +40,7 @@ fun appModule() = module {
     factory { LogoutUseCase(get()) }
     
     // ViewModels
-    factory { LoginViewModel(get(), get()) }
+    factory { LoginViewModel(get(), get(), get()) }
 }
 
 /**
@@ -54,6 +55,6 @@ expect fun platformModule(): Module
 fun initKoin(config: KoinAppDeclaration? = null) {
     startKoin {
         config?.invoke(this)
-        modules(appModule(), platformModule())
+        modules(loggingModule(), appModule(), platformModule())
     }
 }

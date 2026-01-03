@@ -1,31 +1,16 @@
 package com.lite.vault.core.network
 
-import io.ktor.client.*
-import io.ktor.client.engine.darwin.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.logging.*
-import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.json.Json
+import com.lite.vault.core.logging.Logger
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.darwin.Darwin
 
-actual fun createHttpClient(): HttpClient {
+actual fun createHttpClient(logger: Logger): HttpClient {
     return HttpClient(Darwin) {
         engine {
             configureRequest {
                 setTimeoutInterval(30.0)
             }
         }
-        
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-                prettyPrint = true
-                isLenient = true
-            })
-        }
-        
-        install(Logging) {
-            logger = Logger.DEFAULT
-            level = LogLevel.BODY
-        }
+        configureHttpClient(logger)
     }
 }
