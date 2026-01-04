@@ -8,5 +8,7 @@
 	<string>LiteVault</string>
 	<key>CFBundleName</key>
 	<string>LiteVault</string>
+	<key>CLERK_PUBLISHABLE_KEY</key>
+	<string>$(CLERK_PUBLISHABLE_KEY)</string>
 </dict>
 </plist>

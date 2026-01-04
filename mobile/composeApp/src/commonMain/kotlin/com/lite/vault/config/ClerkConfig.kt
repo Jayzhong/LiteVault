@@ -4,14 +4,12 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 object ClerkConfig {
-    // Ideally this should be in BuildConfig or checking build types
-    // TODO: handle the key
-    const val PUBLISHABLE_KEY = "pk_test_"
     const val API_VERSION = "2025-11-10"
 
     @OptIn(ExperimentalEncodingApi::class)
     fun frontendApiBaseUrl(): String {
-        val key = PUBLISHABLE_KEY.trim()
+        val key = clerkPublishableKey().trim()
+        require(key.isNotBlank()) { "Clerk publishable key is missing. Configure CLERK_PUBLISHABLE_KEY." }
         val encoded = when {
             key.startsWith("pk_test_") -> key.removePrefix("pk_test_")
             key.startsWith("pk_live_") -> key.removePrefix("pk_live_")

@@ -1,5 +1,20 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+val clerkPublishableKey: String = providers.gradleProperty("CLERK_PUBLISHABLE_KEY").orNull
+    ?: System.getenv("CLERK_PUBLISHABLE_KEY")
+    ?: localProperties.getProperty("CLERK_PUBLISHABLE_KEY")
+    ?: ""
+
+fun String.escapeForBuildConfig(): String =
+    replace("\\", "\\\\").replace("\"", "\\\"")
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -98,6 +113,14 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        buildConfigField(
+            "String",
+            "CLERK_PUBLISHABLE_KEY",
+            "\"${clerkPublishableKey.escapeForBuildConfig()}\""
+        )
+    }
+    buildFeatures {
+        buildConfig = true
     }
     packaging {
         resources {
