@@ -59,6 +59,13 @@ fun LoginScreen(
 }
 ```
 
+### AppLog Facade (commonMain)
+```kotlin
+AppLog.info("Auth", "action=send_code status=attempt")
+```
+Note: `AppLog` is a facade for convenience. Prefer injecting `Logger` in business code.
+If Koin isn't initialized yet, `AppLog` is a no-op.
+
 ### Android (androidMain)
 ```kotlin
 class AndroidOnlyHelper(private val logger: Logger) {

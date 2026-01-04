@@ -40,7 +40,7 @@ fun appModule() = module {
     factory { LogoutUseCase(get()) }
     
     // ViewModels
-    factory { LoginViewModel(get(), get(), get()) }
+    factory { LoginViewModel(get(), get()) }
 }
 
 /**

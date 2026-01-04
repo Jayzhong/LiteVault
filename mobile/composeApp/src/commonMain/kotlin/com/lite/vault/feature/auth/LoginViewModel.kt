@@ -2,7 +2,7 @@ package com.lite.vault.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lite.vault.core.logging.Logger
+import com.lite.vault.core.logging.AppLog
 import com.lite.vault.core.network.ApiResult
 import com.lite.vault.domain.usecase.SendVerificationCodeUseCase
 import com.lite.vault.domain.usecase.VerifyCodeUseCase
@@ -21,8 +21,7 @@ import kotlinx.coroutines.launch
  */
 class LoginViewModel(
     private val sendVerificationCodeUseCase: SendVerificationCodeUseCase,
-    private val verifyCodeUseCase: VerifyCodeUseCase,
-    private val logger: Logger
+    private val verifyCodeUseCase: VerifyCodeUseCase
 ) : ViewModel() {
     
     private val _state = MutableStateFlow(LoginState())
@@ -80,7 +79,7 @@ class LoginViewModel(
                             message = "Network Error"
                         )
                     )
-                    logger.error("LoginViewModel", "Network Error: ${result.message}")
+                    AppLog.error("LoginViewModel", "Network Error: ${result.message}")
                 }
             }
         }
