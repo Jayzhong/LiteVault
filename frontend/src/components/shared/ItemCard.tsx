@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ColoredTagBadge } from '@/components/shared/ColoredTagBadge';
 import { cn } from '@/lib/utils';
 import type { SourceType, TagInItem } from '@/lib/types';
-import { Clock, FileText, Link as LinkIcon } from 'lucide-react';
+import { Clock, FileText, Link as LinkIcon, Paperclip } from 'lucide-react';
 
 interface ItemCardProps {
     /** Item title (required) */
@@ -20,6 +20,8 @@ interface ItemCardProps {
     statusBadge?: string;
     /** Timestamp display (e.g., "2m ago") */
     timestamp?: string;
+    /** Number of attachments for this item */
+    attachmentCount?: number;
     /** Additional content to render in the card (e.g., action buttons) */
     children?: ReactNode;
     /** Click handler for the entire card */
@@ -45,6 +47,7 @@ export function ItemCard({
     sourceType,
     statusBadge,
     timestamp,
+    attachmentCount,
     children,
     onClick,
     showIcon = false,
@@ -97,12 +100,18 @@ export function ItemCard({
                 )}
             </div>
 
-            {/* Footer: timestamp + tags */}
+            {/* Footer: timestamp + attachments + tags */}
             <div className="flex items-center gap-4 flex-wrap">
                 {timestamp && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
                         {timestamp}
+                    </div>
+                )}
+                {attachmentCount !== undefined && attachmentCount > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {attachmentCount}
                     </div>
                 )}
                 {tags.length > 0 && (

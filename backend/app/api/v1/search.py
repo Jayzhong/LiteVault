@@ -19,6 +19,7 @@ from app.api.schemas.items import TagInItem
 from app.domain.entities.user import User
 from app.domain.exceptions import ValidationException, InvalidCursorException
 from app.infrastructure.persistence.models.item_model import ItemModel
+from app.infrastructure.persistence.models.item_attachment_model import ItemAttachmentModel
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -87,6 +88,25 @@ async def resolve_tags_to_objects(
         else:
             result.append(TagInItem(id="", name=name, color="#6B7280"))
     return result
+
+
+async def get_attachment_counts(db, item_ids: list[str]) -> dict[str, int]:
+    """Get attachment counts for a list of item IDs."""
+    if not item_ids:
+        return {}
+    
+    stmt = (
+        select(
+            ItemAttachmentModel.item_id,
+            func.count(ItemAttachmentModel.id).label("count")
+        )
+        .where(ItemAttachmentModel.item_id.in_(item_ids))
+        .where(ItemAttachmentModel.deleted_at.is_(None))
+        .group_by(ItemAttachmentModel.item_id)
+    )
+    
+    result = await db.execute(stmt)
+    return {row.item_id: row.count for row in result}
 
 
 @router.get("", response_model=SearchResponse)
@@ -180,6 +200,9 @@ async def search_library(
             next_cursor = encode_cursor(last_item.confirmed_at, last_item.id)
     
     # Build response with resolved tag objects
+    item_ids = [item.id for item in items]
+    attachment_counts = await get_attachment_counts(db, item_ids)
+    
     response_items = []
     for item in items:
         tag_objects = await resolve_tags_to_objects(item.tags or [], current_user.id, tag_repo)
@@ -192,6 +215,7 @@ async def search_library(
                 sourceType=item.source_type,
                 confirmedAt=item.confirmed_at,
                 createdAt=item.created_at,
+                attachmentCount=attachment_counts.get(item.id, 0),
             )
         )
     

@@ -67,6 +67,22 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # Object Storage (S3/MinIO)
+    s3_endpoint_url: str = "http://localhost:9000"  # MinIO for local dev
+    s3_access_key: str = "minioadmin"
+    s3_secret_key: str = "minioadmin"
+    s3_bucket_name: str = "litevault-uploads"
+    s3_region: str = "us-east-1"
+    s3_use_ssl: bool = False  # True for production S3
+
+    # Upload limits
+    upload_max_size_bytes: int = 10 * 1024 * 1024  # 10 MB default
+    upload_allowed_types: list[str] = [
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "application/pdf", "text/plain", "text/markdown"
+    ]
+    upload_presigned_url_expiry_seconds: int = 3600  # 1 hour
+
     @property
     def is_development(self) -> bool:
         return self.env == "development"

@@ -11,6 +11,8 @@ from app.infrastructure.persistence.models.ai_usage_model import (
     AiDailyUsageModel,
     AiUsageLedgerModel,
 )
+from app.infrastructure.persistence.models.upload_model import UploadModel
+from app.infrastructure.persistence.models.item_attachment_model import ItemAttachmentModel
 
 __all__ = [
     "UserModel",
@@ -22,5 +24,6 @@ __all__ = [
     "ItemTagSuggestionModel",
     "AiDailyUsageModel",
     "AiUsageLedgerModel",
+    "UploadModel",
+    "ItemAttachmentModel",
 ]
-

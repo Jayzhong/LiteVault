@@ -6,8 +6,9 @@ from typing import Annotated
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, func
 
-from app.api.dependencies import get_current_user, get_item_repository, get_tag_repository
+from app.api.dependencies import get_current_user, get_item_repository, get_tag_repository, DbSession
 from app.api.schemas.library import (
     LibraryResponse,
     LibraryItemResponse,
@@ -19,6 +20,7 @@ from app.domain.exceptions import InvalidCursorException
 from app.infrastructure.persistence.repositories.item_repository_impl import (
     SQLAlchemyItemRepository,
 )
+from app.infrastructure.persistence.models.item_attachment_model import ItemAttachmentModel
 
 router = APIRouter(prefix="/library", tags=["library"])
 
@@ -81,11 +83,31 @@ async def resolve_tags_to_objects_batch(
     return result
 
 
+async def get_attachment_counts(db, item_ids: list[str]) -> dict[str, int]:
+    """Get attachment counts for a list of item IDs."""
+    if not item_ids:
+        return {}
+    
+    stmt = (
+        select(
+            ItemAttachmentModel.item_id,
+            func.count(ItemAttachmentModel.id).label("count")
+        )
+        .where(ItemAttachmentModel.item_id.in_(item_ids))
+        .where(ItemAttachmentModel.deleted_at.is_(None))
+        .group_by(ItemAttachmentModel.item_id)
+    )
+    
+    result = await db.execute(stmt)
+    return {row.item_id: row.count for row in result}
+
+
 @router.get("", response_model=LibraryResponse)
 async def get_library(
     current_user: Annotated[User, Depends(get_current_user)],
     item_repo: Annotated[SQLAlchemyItemRepository, Depends(get_item_repository)],
     tag_repo: Annotated[object, Depends(get_tag_repository)],
+    db: DbSession,
     cursor: str | None = Query(None, description="Pagination cursor"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
 ) -> LibraryResponse:
@@ -119,6 +141,10 @@ async def get_library(
     items_with_tags = [(item, item.tags) for item in items]
     tag_objects_map = await resolve_tags_to_objects_batch(items_with_tags, current_user.id, tag_repo)
     
+    # Get attachment counts for all items
+    item_ids = [item.id for item in items]
+    attachment_counts = await get_attachment_counts(db, item_ids)
+    
     # Build response
     response_items = [
         LibraryItemResponse(
@@ -131,6 +157,7 @@ async def get_library(
             sourceType=item.source_type.value if item.source_type else None,
             createdAt=item.created_at,
             confirmedAt=item.confirmed_at,
+            attachmentCount=attachment_counts.get(item.id, 0),
         )
         for item in items
     ]
@@ -142,4 +169,5 @@ async def get_library(
             hasMore=has_more,
         ),
     )
+
 

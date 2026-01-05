@@ -29,6 +29,19 @@ export interface SuggestedTag {
 }
 
 /**
+ * AttachmentInfo - Attachment metadata for items
+ */
+export interface AttachmentInfo {
+    id: string;
+    uploadId: string;
+    displayName: string;
+    mimeType: string | null;
+    sizeBytes: number | null;
+    kind: 'image' | 'file';
+    createdAt: Date;
+}
+
+/**
  * Item - Core data type for captured content
  */
 export interface Item {
@@ -43,6 +56,8 @@ export interface Item {
     createdAt: Date;
     updatedAt: Date;
     confirmedAt: Date | null;
+    attachmentCount?: number;  // From list endpoints
+    attachments?: AttachmentInfo[];  // From detail endpoint
 }
 
 /**

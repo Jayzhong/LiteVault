@@ -39,6 +39,7 @@ function toItem(result: SearchResultItem): Item {
         createdAt: new Date(result.createdAt),
         updatedAt: new Date(result.createdAt),
         confirmedAt: result.confirmedAt ? new Date(result.confirmedAt) : null,
+        attachmentCount: result.attachmentCount,
     };
 }
 
@@ -239,8 +240,8 @@ export default function SearchPage() {
                     placeholder={microcopy.search.query.placeholder}
                     buttonLabel={microcopy.search.action.search}
                     onSubmit={handleSearch}
-                    defaultValue={query}
-                    onChange={setQuery} // Keep query in sync
+                    value={query}
+                    onChange={setQuery}
                     disabled={searchState === 'searching'}
                     endAdornment={
                         <Button
@@ -254,6 +255,34 @@ export default function SearchPage() {
                         </Button>
                     }
                 />
+                {/* Tag Suggestions Popover Layer */}
+                {isTagPopoverOpen && query.startsWith('#') && (
+                    <div className="absolute top-full left-0 w-full mt-2 p-2 bg-popover border border-border rounded-xl shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100">
+                        {isTagsLoading ? (
+                            <div className="flex items-center justify-center py-4 text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                <span>Loading tags...</span>
+                            </div>
+                        ) : suggestedTags.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                                {suggestedTags.map(tag => (
+                                    <button
+                                        key={tag.id}
+                                        onClick={() => handleTagSelect(tag.name)}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-sm text-left transition-colors group"
+                                    >
+                                        <div className="h-2 w-2 rounded-full bg-primary/40 group-hover:bg-primary" />
+                                        <span className="truncate text-foreground">{tag.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-4 text-center text-sm text-muted-foreground">
+                                No matching tags found.
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Rest of the UI (Loading, Results, Error) - preserved layout */}
@@ -282,6 +311,7 @@ export default function SearchPage() {
                             summary={result.summary || undefined}
                             tags={result.tags}
                             sourceType={result.sourceType as 'NOTE' | 'ARTICLE' | undefined}
+                            attachmentCount={result.attachmentCount}
                             showIcon={true}
                             onClick={() => handleCardClick(result)}
                         />

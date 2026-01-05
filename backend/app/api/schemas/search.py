@@ -1,7 +1,7 @@
 """Search API schemas."""
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.schemas.items import TagInItem
 
@@ -15,6 +15,7 @@ class SearchResultItem(BaseModel):
     sourceType: str | None
     confirmedAt: datetime | None
     createdAt: datetime
+    attachmentCount: int = Field(default=0, alias="attachmentCount")
 
 
 class SearchPaginationInfo(BaseModel):
@@ -29,3 +30,4 @@ class SearchResponse(BaseModel):
     mode: str  # 'tag_only' or 'combined'
     pagination: SearchPaginationInfo
     total: int | None = None  # Optional total count
+

@@ -310,6 +310,51 @@ export const microcopy = {
         },
     },
 
+    // Upload
+    upload: {
+        dropzone: {
+            hint: 'Drop to upload',
+            reject: 'File type not supported',
+        },
+        paste: {
+            added: 'Image added from clipboard',
+        },
+        progress: {
+            uploading: 'Uploading...',
+        },
+        error: {
+            failed: 'Upload failed',
+        },
+        action: {
+            retry: 'Retry',
+            remove: 'Remove',
+        },
+        save: {
+            disabledUploading: 'Uploading files...',
+        },
+    },
+
+    // Attachments (viewing)
+    attachments: {
+        lightbox: {
+            close: 'Close',
+            prev: 'Previous image',
+            next: 'Next image',
+            counter: '{current} of {total}',
+        },
+        grid: {
+            moreOverlay: '+{count} more',
+        },
+        preview: {
+            noPreview: 'Preview not available',
+            download: 'Download',
+        },
+        error: {
+            loadFailed: 'Failed to load preview',
+            downloadFailed: 'Failed to download',
+        },
+    },
+
     // Auth
     auth: {
         signup: {
