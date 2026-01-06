@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { microcopy } from '@/lib/microcopy';
 import {
     Dialog,
@@ -68,6 +69,7 @@ export function ItemDetailModal({
     onUpdate,
     onDiscard,
 }: ItemDetailModalProps) {
+    const queryClient = useQueryClient();
     const [isEditing, setIsEditing] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isDiscarding, setIsDiscarding] = useState(false);
@@ -278,6 +280,11 @@ export function ItemDetailModal({
                 await new Promise((resolve) => setTimeout(resolve, 500));
             }
             toast.success(microcopy.toast.discarded);
+
+            // Invalidate library and search queries to refresh the lists
+            queryClient.invalidateQueries({ queryKey: ['library'] });
+            queryClient.invalidateQueries({ queryKey: ['search'] });
+
             onDiscard?.(item.id);
             onClose();
         } catch (err) {
