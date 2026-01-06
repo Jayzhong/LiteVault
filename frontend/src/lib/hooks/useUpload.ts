@@ -113,10 +113,20 @@ export function useUpload(): UseUploadResult {
             });
 
             // Step 2: PUT file to presigned URL
+            // Read file as ArrayBuffer to prevent browser from setting Content-Type
+            const fileBuffer = await file.arrayBuffer();
+
+            // Create headers explicitly to ensure they match what was signed
+            const putHeaders = new Headers();
+            Object.entries(initData.headersToInclude).forEach(([key, value]) => {
+                putHeaders.set(key, value);
+            });
+
             const putResponse = await fetch(initData.presignedPutUrl, {
                 method: 'PUT',
-                headers: initData.headersToInclude,
-                body: file,
+                headers: putHeaders,
+                body: fileBuffer,
+                mode: 'cors',
             });
 
             if (!putResponse.ok) {
