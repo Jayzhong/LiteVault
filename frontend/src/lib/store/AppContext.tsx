@@ -17,7 +17,7 @@ import { apiClient, isUsingRealApi, generateIdempotencyKey, setTokenGetter, isUs
 interface AppContextType {
     // Pending items
     pendingItems: Item[];
-    addPendingItem: (rawText: string, enrich?: boolean, tagIds?: string[]) => Promise<void>;
+    addPendingItem: (rawText: string, enrich?: boolean, tagIds?: string[]) => Promise<Item | undefined>;
     confirmItem: (id: string, data?: {
         title?: string;
         summary?: string;
@@ -191,11 +191,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
                 // If direct save (enrich=false), item is ARCHIVED - don't add to pending
                 if (!shouldEnrich) {
-                    // Item goes directly to library, no pending state
-                    return;
+                    // Item goes directly to library, return for attachment
+                    return item;
                 }
 
                 setPendingItems((prev) => [item, ...prev]);
+                return item;
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'Failed to save item';
                 setError(message);

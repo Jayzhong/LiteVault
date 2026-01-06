@@ -29,6 +29,20 @@ class CreateItemRequest(BaseModel):
     tagIds: list[str] = []  # Tag UUIDs to associate with item (validated on server)
 
 
+class AttachmentInItem(BaseModel):
+    """Attachment object embedded in item responses."""
+    
+    id: str
+    uploadId: str = Field(..., alias="uploadId")
+    displayName: str = Field(..., alias="displayName")
+    mimeType: str | None = Field(None, alias="mimeType")
+    sizeBytes: int | None = Field(None, alias="sizeBytes")
+    kind: str  # 'image' or 'file'
+    createdAt: datetime = Field(..., alias="createdAt")
+
+    model_config = {"populate_by_name": True}
+
+
 class ItemResponse(BaseModel):
     """Response body for item endpoints."""
 
@@ -44,6 +58,8 @@ class ItemResponse(BaseModel):
     createdAt: datetime
     updatedAt: datetime
     confirmedAt: datetime | None
+    attachmentCount: int = 0
+    attachments: list[AttachmentInItem] = []
 
 
 class PendingItemsResponse(BaseModel):

@@ -29,6 +29,7 @@ export function LibraryItemCard({ item, onUpdate }: LibraryItemCardProps) {
                 summary={item.summary || item.rawText}
                 tags={item.tags}
                 sourceType={item.sourceType}
+                attachmentCount={item.attachmentCount}
                 showIcon={true}
                 onClick={() => setIsModalOpen(true)}
             />

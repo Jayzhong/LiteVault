@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, status
+from sqlalchemy import select
 
 from app.api.dependencies import (
     get_current_user,
@@ -11,9 +12,9 @@ from app.api.dependencies import (
     get_outbox_repository,
     get_tag_repository,
     get_item_tag_repository,
-    get_item_tag_repository,
     get_item_tag_suggestion_repository,
     get_ai_usage_repository,
+    DbSession,
 )
 from app.api.schemas.items import (
     CreateItemRequest,
@@ -24,6 +25,7 @@ from app.api.schemas.items import (
     RetryResponse,
     TagInItem,
     SuggestedTagInItem,
+    AttachmentInItem,
 )
 from app.domain.entities.user import User
 from app.infrastructure.persistence.repositories.item_repository_impl import (
@@ -50,6 +52,8 @@ from app.application.items.dtos import (
     UpdateItemInput,
     RetryEnrichmentInput,
 )
+from app.infrastructure.persistence.models.item_attachment_model import ItemAttachmentModel
+from app.infrastructure.persistence.models.upload_model import UploadModel
 
 router = APIRouter(prefix="/items", tags=["items"])
 
@@ -178,6 +182,7 @@ async def get_item(
     item_repo: Annotated[SQLAlchemyItemRepository, Depends(get_item_repository)],
     tag_repo: Annotated[object, Depends(get_tag_repository)],
     suggestion_repo: Annotated[object, Depends(get_item_tag_suggestion_repository)],
+    db: DbSession,
 ) -> ItemResponse:
     """Get item by ID."""
     use_case = GetItemUseCase(item_repo, suggestion_repo)
@@ -199,6 +204,29 @@ async def get_item(
         for st in output.suggested_tags
     ]
     
+    # Fetch attachments for this item
+    attachment_stmt = (
+        select(ItemAttachmentModel, UploadModel)
+        .join(UploadModel, ItemAttachmentModel.upload_id == UploadModel.id)
+        .where(ItemAttachmentModel.item_id == item_id)
+        .where(ItemAttachmentModel.deleted_at.is_(None))
+    )
+    attachment_result = await db.execute(attachment_stmt)
+    attachment_rows = attachment_result.all()
+    
+    attachments = [
+        AttachmentInItem(
+            id=att.id,
+            uploadId=att.upload_id,
+            displayName=att.display_name,
+            mimeType=upload.mime_type,
+            sizeBytes=upload.size_bytes,
+            kind=upload.kind,
+            createdAt=att.created_at,
+        )
+        for att, upload in attachment_rows
+    ]
+    
     return ItemResponse(
         id=output.id,
         rawText=output.raw_text,
@@ -211,6 +239,8 @@ async def get_item(
         createdAt=output.created_at,
         updatedAt=output.updated_at,
         confirmedAt=output.confirmed_at,
+        attachmentCount=len(attachments),
+        attachments=attachments,
     )
 
 

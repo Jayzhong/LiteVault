@@ -1,7 +1,7 @@
 """Library API schemas."""
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.schemas.items import TagInItem
 
@@ -17,6 +17,7 @@ class LibraryItemResponse(BaseModel):
     sourceType: str | None
     createdAt: datetime
     confirmedAt: datetime | None
+    attachmentCount: int = Field(default=0, alias="attachmentCount")
 
 
 class PaginationInfo(BaseModel):
@@ -29,3 +30,4 @@ class LibraryResponse(BaseModel):
     """Response body for GET /library."""
     items: list[LibraryItemResponse]
     pagination: PaginationInfo
+

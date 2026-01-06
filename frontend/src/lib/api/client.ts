@@ -14,7 +14,7 @@ const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === 'true';
 const USE_CLERK_AUTH = process.env.NEXT_PUBLIC_USE_CLERK_AUTH === 'true';
 // Empty string = same-origin (production via reverse proxy)
 // Explicit URL = cross-origin (local dev pointing to backend)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID || 'dev-user-001';
 
 // Error response type from API
@@ -73,6 +73,7 @@ export interface LibraryItemResponse {
     sourceType: string | null;
     createdAt: string;
     confirmedAt: string | null;
+    attachmentCount?: number;
 }
 
 export interface LibraryResponse {
@@ -106,6 +107,7 @@ export interface SearchResultItem {
     sourceType: string | null;
     confirmedAt: string | null;
     createdAt: string;
+    attachmentCount?: number;
 }
 
 export interface SearchResponse {
@@ -132,6 +134,7 @@ function parseApiItem(item: CreateItemResponse): Item {
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.updatedAt),
         confirmedAt: item.confirmedAt ? new Date(item.confirmedAt) : null,
+        attachmentCount: (item as unknown as { attachmentCount?: number }).attachmentCount,
     };
 }
 
@@ -149,6 +152,32 @@ let tokenGetter: (() => Promise<string | null>) | null = null;
  */
 export function setTokenGetter(getter: () => Promise<string | null>): void {
     tokenGetter = getter;
+}
+
+/**
+ * Get authentication headers for API calls.
+ * Used by direct fetch calls (e.g., in useUpload hook).
+ */
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {};
+
+    if (USE_CLERK_AUTH && tokenGetter) {
+        try {
+            const token = await tokenGetter();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+        } catch (err) {
+            console.warn('Failed to get Clerk token:', err);
+        }
+    }
+
+    // Fallback to dev user ID if no token and not using Clerk
+    if (!USE_CLERK_AUTH || !headers['Authorization']) {
+        headers['X-Dev-User-Id'] = DEV_USER_ID;
+    }
+
+    return headers;
 }
 
 class ApiClient {
@@ -426,6 +455,15 @@ class ApiClient {
         if (cursor) params.set('cursor', cursor);
         params.set('limit', limit.toString());
         return this.fetch<SearchResponse>(`/api/v1/search?${params.toString()}`);
+    }
+
+    /**
+     * Get attachment download URL (GET /attachments/:id/download_url)
+     * @param preview If true, returns inline URL for in-browser viewing (PDF preview)
+     */
+    async getAttachmentDownloadUrl(attachmentId: string, preview: boolean = false): Promise<{ downloadUrl: string }> {
+        const params = preview ? '?preview=true' : '';
+        return this.fetch<{ downloadUrl: string }>(`/api/v1/attachments/${attachmentId}/download_url${params}`);
     }
 }
 

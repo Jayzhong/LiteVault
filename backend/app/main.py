@@ -14,6 +14,11 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.library import router as library_router
 from app.api.v1.tags import router as tags_router
 from app.api.v1.search import router as search_router
+from app.api.v1.uploads import (
+    router as uploads_router,
+    attachments_router,
+    items_attachments_router,
+)
 from app.infrastructure.enrichment.worker import worker
 from app.infrastructure.enrichment.prompt_loader import PromptLoader
 
@@ -58,6 +63,9 @@ def create_app() -> FastAPI:
     app.include_router(library_router, prefix="/api/v1")
     app.include_router(tags_router, prefix="/api/v1")
     app.include_router(search_router, prefix="/api/v1")
+    app.include_router(uploads_router, prefix="/api/v1")
+    app.include_router(attachments_router, prefix="/api/v1")
+    app.include_router(items_attachments_router, prefix="/api/v1")
 
     return app
 

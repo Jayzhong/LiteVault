@@ -32,6 +32,7 @@ function parseLibraryItem(item: LibraryResponse['items'][0]): Item {
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.createdAt), // Not in response, use createdAt
         confirmedAt: item.confirmedAt ? new Date(item.confirmedAt) : null,
+        attachmentCount: item.attachmentCount,
     };
 }
 
