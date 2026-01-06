@@ -68,7 +68,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000"]
 
     # Object Storage (S3/MinIO)
-    s3_endpoint_url: str = "http://localhost:9000"  # MinIO for local dev
+    s3_endpoint_url: str = "http://localhost:9000"  # MinIO for local dev (backend-to-storage)
+    s3_public_url: str | None = None  # Public URL for presigned URLs (if different from endpoint_url)
     s3_access_key: str = "minioadmin"
     s3_secret_key: str = "minioadmin"
     s3_bucket_name: str = "litevault-uploads"

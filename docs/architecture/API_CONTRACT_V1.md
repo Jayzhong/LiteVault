@@ -170,6 +170,7 @@ All fields are optional. Send only fields to update.
 | `GET` | `/items/:id` | Get single item | ✓ |
 | `PATCH` | `/items/:id` | Update item (edit/confirm/discard) | ✓ |
 | `POST` | `/items/:id/retry` | Retry failed enrichment | ✓ |
+| `GET` | `/items/:id/attachments` | List attachments for item | ✓ |
 | `GET` | `/library` | List archived items (timeline) | ✓ |
 | `GET` | `/search` | Search library (lexical, V1) | ✓ |
 | `GET` | `/tags` | List all tags | ✓ |
@@ -177,6 +178,12 @@ All fields are optional. Send only fields to update.
 | `PATCH` | `/tags/:id` | Rename tag | ✓ |
 | `DELETE` | `/tags/:id` | Delete tag | ✓ |
 | `POST` | `/tags/merge` | Merge tags | ✓ |
+| `POST` | `/uploads/initiate` | Get presigned PUT URL for upload | ✓ |
+| `POST` | `/uploads/complete` | Complete upload and create attachment | ✓ |
+| `GET` | `/uploads/:id` | Get upload status | ✓ |
+| `DELETE` | `/uploads/:id` | Delete upload | ✓ |
+| `GET` | `/attachments/:id/download_url` | Get presigned download URL | ✓ |
+| `DELETE` | `/attachments/:id` | Delete attachment | ✓ |
 
 ---
 
@@ -339,7 +346,19 @@ Returns items with status `ENRICHING`, `READY_TO_CONFIRM`, or `FAILED`.
   "sourceType": "NOTE",
   "createdAt": "2025-12-27T13:00:00.000Z",
   "updatedAt": "2025-12-27T13:05:00.000Z",
-  "confirmedAt": null
+  "confirmedAt": null,
+  "attachmentCount": 2,
+  "attachments": [
+    {
+      "id": "att-uuid-1",
+      "uploadId": "upload-uuid-1",
+      "displayName": "screenshot.png",
+      "mimeType": "image/png",
+      "sizeBytes": 524288,
+      "kind": "image",
+      "createdAt": "2025-12-27T13:03:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -457,13 +476,15 @@ Returns items with status `ARCHIVED`, sorted by `confirmedAt` descending.
   "items": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
+      "rawText": "Meeting notes...",
       "title": "Product Review Meeting Notes",
       "summary": "Product review discussing Q1 roadmap...",
-      "tags": ["Meetings", "Product"],
+      "tags": [{"id": "tag-1", "name": "Meetings", "color": "#6B7280"}],
       "status": "ARCHIVED",
       "sourceType": "NOTE",
       "createdAt": "2025-12-27T13:00:00.000Z",
-      "confirmedAt": "2025-12-27T13:05:00.000Z"
+      "confirmedAt": "2025-12-27T13:05:00.000Z",
+      "attachmentCount": 2
     }
   ],
   "pagination": {
@@ -504,9 +525,11 @@ Searches archived items using lexical matching. Supports two modes:
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "title": "Product Review Meeting Notes",
       "summary": "Product review discussing Q1 roadmap...",
-      "tags": ["Meetings", "Product"],
+      "tags": [{"id": "tag-1", "name": "Meetings", "color": "#6B7280"}],
       "sourceType": "NOTE",
-      "confirmedAt": "2025-12-27T13:05:00.000Z"
+      "createdAt": "2025-12-27T13:00:00.000Z",
+      "confirmedAt": "2025-12-27T13:05:00.000Z",
+      "attachmentCount": 2
     }
   ],
   "mode": "combined",
@@ -701,6 +724,8 @@ Soft-deletes a tag by setting `deleted_at=now()`. The tag is hidden from all que
 
 #### `POST /tags/merge` — Merge Tags
 
+> ⚠️ **NOT IMPLEMENTED**: This endpoint is planned but not yet implemented.
+
 Merges source tags into target tag.
 
 **Request**
@@ -723,6 +748,212 @@ Merges source tags into target tag.
   "mergedCount": 2
 }
 ```
+
+---
+
+### 5.5 Uploads & Attachments
+
+File uploads use a **presigned URL workflow** for direct client-to-storage uploads:
+
+1. Client calls `POST /uploads/initiate` with file metadata
+2. Backend returns presigned PUT URL for object storage
+3. Client uploads file directly to storage using presigned URL
+4. Client calls `POST /uploads/complete` to finalize
+5. Backend verifies upload and creates attachment record
+
+#### `POST /uploads/initiate` — Initiate Upload
+
+Returns a presigned PUT URL for direct upload to object storage (MinIO/S3).
+
+**Request**
+```json
+{
+  "filename": "document.pdf",
+  "mimeType": "application/pdf",
+  "sizeBytes": 1048576,
+  "kind": "file",
+  "itemId": "550e8400-e29b-41d4-a716-446655440000",
+  "idempotencyKey": "abc123"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `filename` | string | Yes | Original filename (max 255 chars) |
+| `mimeType` | string | Yes | MIME type of file |
+| `sizeBytes` | number | Yes | File size in bytes |
+| `kind` | string | Yes | `image` or `file` |
+| `itemId` | string | No | Item to attach to (can be set on complete) |
+| `idempotencyKey` | string | No | Unique key to prevent duplicates |
+
+**Response** `201 Created`
+```json
+{
+  "uploadId": "upload-uuid",
+  "objectKey": "user-id/upload-id/document.pdf",
+  "presignedPutUrl": "https://minio.example.com/bucket/...",
+  "headersToInclude": {
+    "Content-Type": "application/pdf",
+    "Content-Length": "1048576"
+  },
+  "expiresAt": "2025-12-27T14:00:00.000Z",
+  "status": "INITIATED"
+}
+```
+
+**Error Cases**
+| Status | Code | Description |
+|--------|------|-------------|
+| 413 | `FILE_TOO_LARGE` | File exceeds size limit |
+| 415 | `INVALID_FILE_TYPE` | MIME type not allowed |
+| 409 | `DUPLICATE_REQUEST` | Idempotency key already used |
+
+---
+
+#### `POST /uploads/complete` — Complete Upload
+
+Verifies the file exists in storage and creates an attachment record.
+
+**Request**
+```json
+{
+  "uploadId": "upload-uuid",
+  "itemId": "550e8400-e29b-41d4-a716-446655440000",
+  "etag": "\"abc123\"" 
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `uploadId` | string | Yes | Upload ID from initiate |
+| `itemId` | string | Yes | Item to attach to |
+| `etag` | string | No | ETag from S3 PUT response |
+
+**Response** `200 OK`
+```json
+{
+  "upload": {
+    "id": "upload-uuid",
+    "objectKey": "user-id/upload-id/document.pdf",
+    "filename": "document.pdf",
+    "mimeType": "application/pdf",
+    "sizeBytes": 1048576,
+    "kind": "file",
+    "status": "COMPLETED",
+    "createdAt": "2025-12-27T13:00:00.000Z",
+    "completedAt": "2025-12-27T13:01:00.000Z"
+  },
+  "attachment": {
+    "id": "attachment-uuid",
+    "uploadId": "upload-uuid",
+    "itemId": "item-uuid",
+    "displayName": "document.pdf",
+    "kind": "file",
+    "createdAt": "2025-12-27T13:01:00.000Z"
+  }
+}
+```
+
+**Error Cases**
+| Status | Code | Description |
+|--------|------|-------------|
+| 404 | `UPLOAD_NOT_FOUND` | Upload does not exist |
+| 410 | `UPLOAD_EXPIRED` | Presigned URL has expired |
+| 409 | `INVALID_UPLOAD_STATE` | Upload not in INITIATED state |
+| 400 | `UPLOAD_VERIFICATION_FAILED` | File not found in storage |
+
+---
+
+#### `GET /uploads/:id` — Get Upload Status
+
+**Response** `200 OK`
+```json
+{
+  "id": "upload-uuid",
+  "objectKey": "user-id/upload-id/document.pdf",
+  "filename": "document.pdf",
+  "mimeType": "application/pdf",
+  "sizeBytes": 1048576,
+  "kind": "file",
+  "status": "COMPLETED",
+  "createdAt": "2025-12-27T13:00:00.000Z",
+  "completedAt": "2025-12-27T13:01:00.000Z",
+  "expiresAt": "2025-12-27T14:00:00.000Z"
+}
+```
+
+---
+
+#### `DELETE /uploads/:id` — Delete Upload
+
+Soft-deletes an upload record.
+
+**Response** `204 No Content`
+
+---
+
+#### `GET /items/:id/attachments` — List Item Attachments
+
+Returns all attachments for an item.
+
+**Response** `200 OK`
+```json
+{
+  "attachments": [
+    {
+      "id": "attachment-uuid",
+      "uploadId": "upload-uuid",
+      "displayName": "document.pdf",
+      "mimeType": "application/pdf",
+      "sizeBytes": 1048576,
+      "kind": "file",
+      "createdAt": "2025-12-27T13:01:00.000Z"
+    },
+    {
+      "id": "attachment-uuid-2",
+      "uploadId": "upload-uuid-2",
+      "displayName": "screenshot.png",
+      "mimeType": "image/png",
+      "sizeBytes": 524288,
+      "kind": "image",
+      "createdAt": "2025-12-27T13:02:00.000Z"
+    }
+  ],
+  "total": 2
+}
+```
+
+---
+
+#### `GET /attachments/:id/download_url` — Get Download URL
+
+Returns a presigned download URL for an attachment.
+
+**Query Parameters**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `preview` | boolean | false | If true, returns inline URL for in-browser viewing (PDF preview) |
+
+**Response** `200 OK`
+```json
+{
+  "downloadUrl": "https://minio.example.com/bucket/...",
+  "expiresAt": "2025-12-27T14:00:00.000Z",
+  "filename": "document.pdf",
+  "mimeType": "application/pdf",
+  "sizeBytes": 1048576
+}
+```
+
+> **Note:** When `preview=true`, the URL returns `Content-Disposition: inline` for in-browser viewing. When `preview=false` (default), returns `Content-Disposition: attachment` for download.
+
+---
+
+#### `DELETE /attachments/:id` — Delete Attachment
+
+Soft-deletes an attachment record.
+
+**Response** `204 No Content`
 
 ---
 

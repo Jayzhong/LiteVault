@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 @lru_cache()
 def get_s3_client():
-    """Get configured S3 client (cached singleton).
+    """Get configured S3 client for backend-to-storage operations (cached singleton).
     
     Returns:
         boto3 S3 client configured for MinIO (local) or S3 (production).
@@ -40,6 +40,39 @@ def get_s3_client():
         f"S3 client initialized: endpoint={settings.s3_endpoint_url}, "
         f"bucket={settings.s3_bucket_name}"
     )
+    
+    return client
+
+
+@lru_cache()
+def get_presigned_client():
+    """Get S3 client for generating presigned URLs (uses public URL if configured).
+    
+    This client uses s3_public_url (if set) so presigned URLs are accessible
+    from browsers, not just from inside the Docker network.
+    
+    Returns:
+        boto3 S3 client for presigned URL generation.
+    """
+    # Use public URL if set, otherwise fall back to endpoint URL
+    presigned_endpoint = settings.s3_public_url or settings.s3_endpoint_url
+    
+    config = Config(
+        signature_version="s3v4",
+        s3={"addressing_style": "path"},
+    )
+    
+    client = boto3.client(
+        "s3",
+        endpoint_url=presigned_endpoint,
+        aws_access_key_id=settings.s3_access_key,
+        aws_secret_access_key=settings.s3_secret_key,
+        region_name=settings.s3_region,
+        use_ssl=settings.s3_use_ssl or presigned_endpoint.startswith("https"),
+        config=config,
+    )
+    
+    logger.info(f"Presigned URL client initialized: endpoint={presigned_endpoint}")
     
     return client
 
@@ -92,7 +125,7 @@ def generate_presigned_put_url(
     Returns:
         Dict with presigned_url, headers_to_include, expires_in_seconds.
     """
-    client = get_s3_client()
+    client = get_presigned_client()
     
     if expiry_seconds is None:
         expiry_seconds = settings.upload_presigned_url_expiry_seconds
@@ -135,7 +168,7 @@ def generate_presigned_get_url(
     Returns:
         Dict with presigned_url and expires_in_seconds.
     """
-    client = get_s3_client()
+    client = get_presigned_client()
     
     if expiry_seconds is None:
         expiry_seconds = settings.upload_presigned_url_expiry_seconds
