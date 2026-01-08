@@ -111,6 +111,7 @@ class SQLAlchemyItemRepository(ItemRepository):
             update(ItemModel)
             .where(ItemModel.id == item.id)
             .values(
+                raw_text=item.raw_text,
                 title=item.title,
                 summary=item.summary,
                 status=item.status.value,
