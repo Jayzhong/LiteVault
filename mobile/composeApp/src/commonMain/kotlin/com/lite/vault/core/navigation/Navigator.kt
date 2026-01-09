@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Uses StateFlow to emit screen changes.
  * ViewModels trigger navigation via Effects.
  */
-class Navigator(initialScreen: Screen = Screen.Login) {
+class Navigator(initialScreen: Screen = Screen.Splash) {
     private val _currentScreen = MutableStateFlow<Screen>(initialScreen)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
     

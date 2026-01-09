@@ -9,5 +9,6 @@ import kotlinx.serialization.Serializable
 data class Session(
     val token: String,
     val userId: String,
-    val email: String
+    val email: String,
+    val isNewUser: Boolean = false
 )

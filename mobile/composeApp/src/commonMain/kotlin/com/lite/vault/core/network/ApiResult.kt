@@ -24,9 +24,11 @@ sealed class ApiResult<out T> {
 /**
  * Helper function to wrap exceptions in ApiResult
  */
-inline fun <T> apiCall(block: () -> T): ApiResult<T> {
+suspend inline fun <T> apiCall(block: suspend () -> T): ApiResult<T> {
     return try {
         ApiResult.Success(block())
+    } catch (e: ApiException) {
+        ApiResult.Error(code = e.statusCode, message = e.responseBody.ifBlank { e.message ?: "API error" })
     } catch (e: Exception) {
         ApiResult.Error(message = e.message ?: "Unknown error")
     }

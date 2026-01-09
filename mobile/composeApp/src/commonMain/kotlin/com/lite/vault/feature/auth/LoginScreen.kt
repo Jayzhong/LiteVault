@@ -59,6 +59,9 @@ fun LoginScreen(
                 is LoginEffect.NavigateToHome -> {
                     navigator.navigate(com.lite.vault.core.navigation.Screen.Home)
                 }
+                is LoginEffect.NavigateToEditProfile -> {
+                    navigator.navigate(com.lite.vault.core.navigation.Screen.EditProfile)
+                }
                 is LoginEffect.ShowError -> {
                     errorTitle = effect.title
                     errorMessage = effect.message

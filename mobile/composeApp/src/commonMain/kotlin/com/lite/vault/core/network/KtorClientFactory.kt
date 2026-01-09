@@ -37,14 +37,22 @@ fun HttpClientConfig<*>.configureHttpClient(logger: Logger) {
             val startTime: TimeMark? = request.attributes.getOrNull(SafeNetworkStartTimeKey)
             val latencyMs = startTime?.elapsedNow()?.inWholeMilliseconds
             val method = request.method.value
-            val path = request.url.encodedPath
+            val requestUrl = request.url
+            val path = requestUrl.encodedPath
             val response = (cause as? ResponseException)?.response
             val status = response?.status?.value?.toString() ?: "error"
             val traceId = response?.headers?.let { findTraceId(it) }
+            val url = buildUrlLabel(
+                scheme = requestUrl.protocol.name,
+                host = requestUrl.host,
+                port = requestUrl.port,
+                path = path
+            )
 
             val message = buildMessage(
                 method = method,
                 path = path,
+                url = url,
                 status = status,
                 latencyMs = latencyMs,
                 traceId = traceId,

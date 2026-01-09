@@ -1,6 +1,7 @@
 package com.lite.vault.core.logging
 
 object Redactor {
+    private const val ENABLE_REDACTION = true
     private val authHeaderRegex = Regex("(?i)(authorization|cookie|set-cookie)\\s*:\\s*[^\\r\\n]+")
     private val authKeyValueRegex = Regex("(?i)(authorization|cookie|set-cookie)\\s*=\\s*[^\\s;]+")
     private val bearerRegex = Regex("(?i)bearer\\s+[A-Za-z0-9-_=\\.]+")
@@ -31,6 +32,7 @@ object Redactor {
     )
 
     fun redact(message: String): String {
+        if (!ENABLE_REDACTION) return message
         var result = message
         result = redactRawText(result)
         result = redactResponseText(result)
@@ -44,6 +46,7 @@ object Redactor {
 
     fun redactAttributes(attributes: Map<String, String>): Map<String, String> {
         if (attributes.isEmpty()) return attributes
+        if (!ENABLE_REDACTION) return attributes
         return attributes.mapValues { (key, value) ->
             val normalizedKey = key.lowercase()
             if (normalizedKey in sensitiveKeys) {
@@ -55,6 +58,7 @@ object Redactor {
     }
 
     fun redactThrowable(throwable: Throwable): Throwable {
+        if (!ENABLE_REDACTION) return throwable
         val message = throwable.message?.let { redact(it) }
         return Throwable(message)
     }

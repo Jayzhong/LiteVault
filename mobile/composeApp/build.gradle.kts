@@ -12,6 +12,14 @@ val clerkPublishableKey: String = providers.gradleProperty("CLERK_PUBLISHABLE_KE
     ?: System.getenv("CLERK_PUBLISHABLE_KEY")
     ?: localProperties.getProperty("CLERK_PUBLISHABLE_KEY")
     ?: ""
+val liteVaultApiBaseUrl: String = providers.gradleProperty("LITEVAULT_API_BASE_URL").orNull
+    ?: System.getenv("LITEVAULT_API_BASE_URL")
+    ?: localProperties.getProperty("LITEVAULT_API_BASE_URL")
+    ?: ""
+val liteVaultDevUserId: String = providers.gradleProperty("LITEVAULT_DEV_USER_ID").orNull
+    ?: System.getenv("LITEVAULT_DEV_USER_ID")
+    ?: localProperties.getProperty("LITEVAULT_DEV_USER_ID")
+    ?: ""
 
 fun String.escapeForBuildConfig(): String =
     replace("\\", "\\\\").replace("\"", "\\\"")
@@ -45,6 +53,9 @@ kotlin {
     }
     
     sourceSets {
+        all {
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+        }
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
@@ -117,6 +128,16 @@ android {
             "String",
             "CLERK_PUBLISHABLE_KEY",
             "\"${clerkPublishableKey.escapeForBuildConfig()}\""
+        )
+        buildConfigField(
+            "String",
+            "LITEVAULT_API_BASE_URL",
+            "\"${liteVaultApiBaseUrl.escapeForBuildConfig()}\""
+        )
+        buildConfigField(
+            "String",
+            "LITEVAULT_DEV_USER_ID",
+            "\"${liteVaultDevUserId.escapeForBuildConfig()}\""
         )
     }
     buildFeatures {

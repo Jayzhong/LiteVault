@@ -14,7 +14,13 @@
     <string name="login_terms">By continuing, you agree to our %1$s and %2$s</string>
     <string name="login_terms_service">Terms of Service</string>
     <string name="login_privacy">Privacy Policy</string>
-    
+
+    <!-- Common -->
+    <string name="common_loading">Loading...</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_untitled">Untitled</string>
+    <string name="common_capture">Capture</string>
+
     <!-- Error Modal -->
     <string name="error_login_failed_title">Login Failed</string>
     <string name="error_login_failed_message">Verification code incorrect. Please check your credentials or try again.</string>
@@ -22,8 +28,115 @@
     <string name="error_network_title">Network Error</string>
     <string name="error_network_message">Please check your internet connection and try again.</string>
     
-    <!-- Home Placeholder -->
+    <!-- Home -->
     <string name="home_title">Welcome to LiteVault</string>
     <string name="home_placeholder">You are logged in!</string>
     <string name="home_logout">Logout</string>
+    <string name="home_greeting">Good morning, %1$s</string>
+    <string name="home_default_name">Alex</string>
+    <string name="home_capture_placeholder">What&apos;s on your mind? Drop a link, thought, or image...</string>
+    <string name="home_use_ai">Use AI</string>
+    <string name="home_save">Save</string>
+    <string name="home_saving">Saving...</string>
+    <string name="home_ai_processing">AI PROCESSING...</string>
+    <string name="home_pending_review">PENDING REVIEW</string>
+    <string name="home_processing_helper">Categorizing &amp; summarizing content...</string>
+    <string name="home_recent_captures">RECENT CAPTURES</string>
+    <string name="home_view_all">View All</string>
+    <string name="home_edit">Edit</string>
+    <string name="home_time_just_now">Just now</string>
+    <string name="home_time_minutes_ago">%1$dm ago</string>
+    <string name="home_time_hours_ago">%1$dh ago</string>
+    <string name="home_time_yesterday">Yesterday</string>
+
+    <!-- Library -->
+    <string name="library_title">Library</string>
+    <string name="library_search_placeholder">Search saved items...</string>
+    <string name="library_empty">No items yet</string>
+    <string name="library_end">END OF LIBRARY</string>
+    <string name="library_error">Couldn&apos;t load library</string>
+    <string name="library_group_today">TODAY</string>
+    <string name="library_group_yesterday">YESTERDAY</string>
+    <string name="library_group_week">THIS WEEK</string>
+    <string name="library_group_month">THIS MONTH</string>
+    <string name="library_group_older">OLDER</string>
+    <string name="library_read_time">%1$dm read</string>
+
+    <!-- Me -->
+    <string name="me_default_name">Alex Design</string>
+    <string name="me_default_bio">Digital explorer and minimal design enthusiast. Capturing thoughts, one vault at a time.</string>
+    <string name="me_edit_profile">Edit Profile</string>
+    <string name="me_nickname_format">@%1$s</string>
+    <string name="me_email_label">Email</string>
+    <string name="me_email_placeholder">user@example.com</string>
+    <string name="me_plan_label">Plan</string>
+    <string name="me_plan_free">FREE</string>
+    <string name="me_logout">Log Out</string>
+    <string name="me_logout_title">Log out of LiteVault?</string>
+    <string name="me_logout_message">Are you sure you want to log out? You will need to re-enter your email to log back in.</string>
+    <string name="me_logout_confirm">Logout</string>
+    <string name="me_logout_cancel">Cancel</string>
+    <string name="me_logout_loading">Logging out...</string>
+    <string name="me_error">Couldn&apos;t load profile</string>
+    <string name="me_edit_profile_avatar_hint">Tap to change avatar</string>
+    <string name="me_edit_profile_nickname_label">Nickname</string>
+    <string name="me_edit_profile_nickname_placeholder">Enter nickname</string>
+    <string name="me_edit_profile_bio_label">Bio</string>
+    <string name="me_edit_profile_bio_placeholder">Enter bio</string>
+    <string name="me_edit_profile_bio_count">%1$d/%2$d</string>
+    <string name="me_edit_profile_save">Save Changes</string>
+    <string name="me_edit_profile_saving">Saving...</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_library">Library</string>
+    <string name="tab_me">Me</string>
+
+    <!-- Source Types -->
+    <string name="source_note">NOTE</string>
+    <string name="source_article">ARTICLE</string>
+
+    <!-- Item Detail -->
+    <string name="item_detail_ai_summary">AI SUMMARY</string>
+    <string name="item_detail_editing">EDITING</string>
+    <string name="item_detail_tags">TAGS</string>
+    <string name="item_detail_new_tag">+ New Tag</string>
+    <string name="item_detail_add_tags">Add Tags</string>
+    <string name="item_detail_edit_tags">Edit Tags</string>
+    <string name="item_detail_add_tag_placeholder">Add a new tag...</string>
+    <string name="item_detail_add_tag_action">Add tag</string>
+    <string name="item_detail_suggested_tags">Suggested:</string>
+    <string name="item_detail_your_tags">Your Tags</string>
+    <string name="item_detail_active_tags">%1$d ACTIVE</string>
+    <string name="item_detail_save_tags">Save</string>
+    <string name="item_detail_original_content">Original Content</string>
+    <string name="item_detail_raw_text">RAW TEXT</string>
+    <string name="item_detail_read_more">Read Full Text</string>
+    <string name="item_detail_read_less">Hide Full Text</string>
+    <string name="item_detail_confirm_changes">Confirm</string>
+    <string name="item_detail_edit_content">Edit Content</string>
+    <string name="item_detail_cancel">Cancel</string>
+    <string name="item_detail_saving">Saving...</string>
+    <string name="item_detail_character_count">%1$d characters</string>
+    <string name="item_detail_date_format">%1$s %2$d, %3$d:%4$s %5$s</string>
+    <string name="detail_menu_delete">Delete</string>
+    <string name="detail_delete_title">Delete item?</string>
+    <string name="detail_delete_message">This action cannot be undone.</string>
+    <string name="detail_delete_confirm">Delete</string>
+
+    <!-- Date / Time -->
+    <string name="month_jan">Jan</string>
+    <string name="month_feb">Feb</string>
+    <string name="month_mar">Mar</string>
+    <string name="month_apr">Apr</string>
+    <string name="month_may">May</string>
+    <string name="month_jun">Jun</string>
+    <string name="month_jul">Jul</string>
+    <string name="month_aug">Aug</string>
+    <string name="month_sep">Sep</string>
+    <string name="month_oct">Oct</string>
+    <string name="month_nov">Nov</string>
+    <string name="month_dec">Dec</string>
+    <string name="time_am">AM</string>
+    <string name="time_pm">PM</string>
 </resources>

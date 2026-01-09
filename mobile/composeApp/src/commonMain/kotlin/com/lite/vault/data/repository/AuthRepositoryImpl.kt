@@ -43,7 +43,8 @@ class AuthRepositoryImpl(
                     Session(
                         token = token,
                         userId = "current-user",
-                        email = "user@litevault.app"
+                        email = "user@litevault.app",
+                        isNewUser = false
                     )
                 )
             } else {

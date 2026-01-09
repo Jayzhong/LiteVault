@@ -1,2 +1,4 @@
 # Local-only config (do not commit local.properties)
 CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
+LITEVAULT_API_BASE_URL=http://10.0.2.2:8080/api/v1
+LITEVAULT_DEV_USER_ID=user-123

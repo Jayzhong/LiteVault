@@ -23,5 +23,6 @@ sealed class LoginIntent {
 
 sealed class LoginEffect {
     data object NavigateToHome : LoginEffect()
+    data object NavigateToEditProfile : LoginEffect()
     data class ShowError(val title: String, val message: String) : LoginEffect()
 }

@@ -97,7 +97,11 @@ class LoginViewModel(
             when (val result = verifyCodeUseCase(email, code)) {
                 is ApiResult.Success -> {
                     _state.update { it.copy(isLoading = false) }
-                    _effect.emit(LoginEffect.NavigateToHome)
+                    if (result.data.isNewUser) {
+                        _effect.emit(LoginEffect.NavigateToEditProfile)
+                    } else {
+                        _effect.emit(LoginEffect.NavigateToHome)
+                    }
                 }
                 is ApiResult.Error -> {
                     _state.update { it.copy(isLoading = false) }

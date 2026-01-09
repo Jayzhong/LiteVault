@@ -10,5 +10,9 @@
 	<string>LiteVault</string>
 	<key>CLERK_PUBLISHABLE_KEY</key>
 	<string>$(CLERK_PUBLISHABLE_KEY)</string>
+	<key>LITEVAULT_API_BASE_URL</key>
+	<string>$(LITEVAULT_API_BASE_URL)</string>
+	<key>LITEVAULT_DEV_USER_ID</key>
+	<string>$(LITEVAULT_DEV_USER_ID)</string>
 </dict>
 </plist>

@@ -22,20 +22,28 @@ val SafeNetworkLogging = createClientPlugin("SafeNetworkLogging", ::SafeNetworkL
     onResponse { response ->
         val logger = config.logger
         val startTime = response.call.request.attributes.getOrNull(SafeNetworkStartTimeKey)
-        val latencyMs = startTime?.elapsedNow()?.inWholeMilliseconds
-        val method = response.call.request.method.value
-        val path = response.call.request.url.encodedPath
-        val status = response.status.value
-        val traceId = findTraceId(response.headers)
+    val latencyMs = startTime?.elapsedNow()?.inWholeMilliseconds
+    val method = response.call.request.method.value
+    val requestUrl = response.call.request.url
+    val path = requestUrl.encodedPath
+    val status = response.status.value
+    val traceId = findTraceId(response.headers)
+    val url = buildUrlLabel(
+        scheme = requestUrl.protocol.name,
+        host = requestUrl.host,
+        port = requestUrl.port,
+        path = path
+    )
 
-        val message = buildMessage(
-            method = method,
-            path = path,
-            status = status.toString(),
-            latencyMs = latencyMs,
-            traceId = traceId
-        )
-        logger.info(config.tag, message)
+    val message = buildMessage(
+        method = method,
+        path = path,
+        url = url,
+        status = status.toString(),
+        latencyMs = latencyMs,
+        traceId = traceId
+    )
+    logger.info(config.tag, message)
     }
 }
 
@@ -44,6 +52,7 @@ internal val SafeNetworkStartTimeKey = AttributeKey<TimeMark>("SafeNetworkStartT
 internal fun buildMessage(
     method: String,
     path: String,
+    url: String? = null,
     status: String,
     latencyMs: Long?,
     traceId: String?,
@@ -52,7 +61,18 @@ internal fun buildMessage(
     val latencyPart = latencyMs?.let { " latency_ms=$it" } ?: ""
     val tracePart = traceId?.let { " trace_id=$it" } ?: ""
     val errorPart = error?.let { " error=$it" } ?: ""
-    return "method=$method path=$path status=$status$latencyPart$tracePart$errorPart"
+    val urlPart = url?.let { " url=$it" } ?: ""
+    return "method=$method path=$path$urlPart status=$status$latencyPart$tracePart$errorPart"
+}
+
+internal fun buildUrlLabel(
+    scheme: String,
+    host: String,
+    port: Int,
+    path: String
+): String {
+    val portPart = if (port == 80 || port == 443) "" else ":$port"
+    return "$scheme://$host$portPart$path"
 }
 
 internal fun findTraceId(headers: Headers): String? {

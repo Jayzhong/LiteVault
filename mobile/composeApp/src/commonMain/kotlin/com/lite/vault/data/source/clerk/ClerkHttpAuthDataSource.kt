@@ -2,6 +2,7 @@ package com.lite.vault.data.source.clerk
 
 import com.lite.vault.config.ClerkConfig
 import com.lite.vault.core.auth.SessionStore
+import com.lite.vault.core.logging.AppLog
 import com.lite.vault.core.network.ApiResult
 import com.lite.vault.data.source.AuthDataSource
 import com.lite.vault.domain.model.Session
@@ -134,7 +135,14 @@ class ClerkHttpAuthDataSource(
                 if (attemptResult.body.status != STATUS_COMPLETE || sessionId.isNullOrBlank()) {
                     ApiResult.Error(message = "Verification incomplete")
                 } else {
-                    ApiResult.Success(Session(token = sessionId, userId = sessionId, email = email))
+                    ApiResult.Success(
+                        Session(
+                            token = sessionId,
+                            userId = sessionId,
+                            email = email,
+                            isNewUser = false
+                        )
+                    )
                 }
             }
             is ClerkApiResult.Failure -> attemptResult.toApiError()
@@ -149,7 +157,14 @@ class ClerkHttpAuthDataSource(
                 if (attemptResult.body.status != STATUS_COMPLETE || sessionId.isNullOrBlank()) {
                     ApiResult.Error(message = "Verification incomplete")
                 } else {
-                    ApiResult.Success(Session(token = sessionId, userId = sessionId, email = email))
+                    ApiResult.Success(
+                        Session(
+                            token = sessionId,
+                            userId = sessionId,
+                            email = email,
+                            isNewUser = true
+                        )
+                    )
                 }
             }
             is ClerkApiResult.Failure -> attemptResult.toApiError()
@@ -201,8 +216,13 @@ class ClerkHttpAuthDataSource(
     }
 
     private suspend fun signOut(): ClerkApiResult<Unit> {
+        val sessionId = sessionStore.getSession()
+        if (sessionId.isNullOrBlank()) {
+            AppLog.debug("ClerkHttpAuth", "signOut skipped: missing session id")
+            return ClerkApiResult.Success(Unit)
+        }
         return postFormNoParse(
-            path = "/v1/client/sign_out",
+            path = "/v1/client/sessions/$sessionId/remove",
             params = emptyMap()
         )
     }
@@ -238,6 +258,10 @@ class ClerkHttpAuthDataSource(
         return try {
             val deviceId = sessionStore.getOrCreateDeviceId()
             val deviceToken = sessionStore.getDeviceToken()
+            AppLog.debug(
+                "ClerkHttpAuth",
+                "request path=$path baseUrl=$baseUrl deviceToken=${if (deviceToken.isNullOrBlank()) "missing" else "present"}"
+            )
             val response = httpClient.submitForm(
                 url = "$baseUrl$path?_is_native=true",
                 formParameters = Parameters.build {
@@ -301,6 +325,10 @@ class ClerkHttpAuthDataSource(
         return try {
             val deviceId = sessionStore.getOrCreateDeviceId()
             val deviceToken = sessionStore.getDeviceToken()
+            AppLog.debug(
+                "ClerkHttpAuth",
+                "request path=$path baseUrl=$baseUrl deviceToken=${if (deviceToken.isNullOrBlank()) "missing" else "present"}"
+            )
             val response = httpClient.submitForm(
                 url = "$baseUrl$path?_is_native=true",
                 formParameters = Parameters.build {
