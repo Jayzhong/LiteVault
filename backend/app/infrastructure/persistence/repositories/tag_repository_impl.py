@@ -192,7 +192,7 @@ class SQLAlchemyTagRepository:
             usage_count=0,
             last_used=None,
             created_at=datetime.now(timezone.utc),
-            color=color or "#6B7280",
+            color=color or "gray",
         )
         return await self.create(tag)
 

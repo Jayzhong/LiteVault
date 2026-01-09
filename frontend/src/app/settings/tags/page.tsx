@@ -49,18 +49,18 @@ export default function TagManagementPage() {
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
     // Use real API with useTags hook
-    const { tags, isLoading, isError, createTag, refetch, isCreating } = useTags({
+    const { tags, isLoading, isFetching, isError, createTag, refetch, isCreating } = useTags({
         q: debouncedSearchQuery || undefined,
         sort: sortBy,
         unused: showUnused || undefined,
     });
 
-    // Track initial load completion
+    // Track initial load completion - wait for both isLoading AND isFetching to be false
     useEffect(() => {
-        if (!isLoading && !hasInitiallyLoaded) {
+        if (!isLoading && !isFetching && !hasInitiallyLoaded) {
             setHasInitiallyLoaded(true);
         }
-    }, [isLoading, hasInitiallyLoaded]);
+    }, [isLoading, isFetching, hasInitiallyLoaded]);
 
     const handleCreateTag = async (name: string) => {
         try {
@@ -78,7 +78,7 @@ export default function TagManagementPage() {
     };
 
     // Loading state - only show skeleton before initial load
-    if (isLoading && !hasInitiallyLoaded) {
+    if ((isLoading || isFetching) && !hasInitiallyLoaded) {
         return (
             <div className="space-y-8">
                 <Skeleton className="h-4 w-48" />

@@ -9,7 +9,7 @@ class TagInItem(BaseModel):
     
     id: str
     name: str
-    color: str = "#6B7280"
+    color: str = "gray"
 
 
 class SuggestedTagInItem(BaseModel):

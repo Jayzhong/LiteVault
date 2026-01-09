@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient, TagResponse, TagsListResponse, isUsingRealApi } from '@/lib/api/client';
+import { useAppContext } from '@/lib/store/AppContext';
 import type { Tag } from '@/lib/types';
 
 interface UseTagsParams {
@@ -22,6 +23,7 @@ interface UseTagsResult {
     updateTagColor: (id: string, color: string) => Promise<void>;
     deleteTag: (id: string) => Promise<void>;
     isCreating: boolean;
+    isFetching: boolean;
 }
 
 // Parse API response to Tag format
@@ -41,6 +43,7 @@ function parseTag(tag: TagResponse): Tag {
  */
 export function useTags(params?: UseTagsParams): UseTagsResult {
     const queryClient = useQueryClient();
+    const { isAuthReady } = useAppContext();
 
     const {
         data,
@@ -57,10 +60,11 @@ export function useTags(params?: UseTagsParams): UseTagsResult {
             }
             return apiClient.getTags(params);
         },
-        enabled: isUsingRealApi,
+        enabled: isUsingRealApi && isAuthReady, // Wait for auth before fetching
         staleTime: 30000,
         placeholderData: keepPreviousData, // Keep previous data during refetch
     });
+
 
     // Create mutation
     const createMutation = useMutation({
@@ -116,5 +120,6 @@ export function useTags(params?: UseTagsParams): UseTagsResult {
             await deleteMutation.mutateAsync(id);
         },
         isCreating: createMutation.isPending,
+        isFetching,
     };
 }

@@ -40,7 +40,7 @@ class TagModel(Base):
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     color: Mapped[str] = mapped_column(
-        String(7), nullable=False, default="#6B7280"  # Default neutral gray
+        String(20), nullable=False, default="gray"  # Default color ID
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
