@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { microcopy } from '@/lib/microcopy';
 import { ItemCard } from '@/components/shared/ItemCard';
-import { ItemDetailModal } from '@/components/shared/ItemDetailModal';
+import { ItemDetailEditor } from '@/components/domain/editor';
 import type { EvidenceItem, Item } from '@/lib/types';
 
 interface EvidenceCardProps {
@@ -50,7 +50,7 @@ export function EvidenceCard({ evidence }: EvidenceCardProps) {
                 onClick={() => setIsModalOpen(true)}
             />
 
-            <ItemDetailModal
+            <ItemDetailEditor
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 item={toItem(evidence)}
@@ -58,3 +58,4 @@ export function EvidenceCard({ evidence }: EvidenceCardProps) {
         </>
     );
 }
+
