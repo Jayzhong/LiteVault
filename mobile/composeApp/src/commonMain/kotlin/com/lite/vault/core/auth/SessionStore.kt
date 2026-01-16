@@ -8,8 +8,10 @@ package com.lite.vault.core.auth
  * - iOS: Keychain for all session data
  */
 expect class SessionStore {
-    suspend fun saveSession(token: String)
+    suspend fun saveSession(token: String, sessionId: String, email: String? = null)
     suspend fun getSession(): String?
+    suspend fun getSessionId(): String?
+    suspend fun getEmail(): String?
     suspend fun clearSession()
     suspend fun isSignedIn(): Boolean
     suspend fun saveDeviceToken(token: String)

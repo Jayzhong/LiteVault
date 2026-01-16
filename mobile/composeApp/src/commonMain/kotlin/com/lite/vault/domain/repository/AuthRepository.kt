@@ -9,6 +9,7 @@ import com.lite.vault.domain.model.Session
 interface AuthRepository {
     suspend fun sendVerificationCode(email: String): ApiResult<Unit>
     suspend fun verifyCode(email: String, code: String): ApiResult<Session>
+    suspend fun refreshToken(): ApiResult<String>
     suspend fun getSession(): ApiResult<Session?>
     suspend fun logout(): ApiResult<Unit>
 }

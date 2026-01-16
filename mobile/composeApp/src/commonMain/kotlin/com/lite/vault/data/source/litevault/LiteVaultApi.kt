@@ -3,6 +3,7 @@ package com.lite.vault.data.source.litevault
 import com.lite.vault.config.apiBaseUrl
 import com.lite.vault.config.devUserId
 import com.lite.vault.core.auth.SessionStore
+import com.lite.vault.core.auth.TokenUtils
 import com.lite.vault.core.logging.Logger
 import com.lite.vault.core.network.ApiException
 import io.ktor.client.HttpClient
@@ -20,87 +21,116 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.Url
 import io.ktor.http.contentType
+import com.lite.vault.core.network.ApiResult
+
+import com.lite.vault.domain.repository.AuthRepository
 
 class LiteVaultApi(
     private val httpClient: HttpClient,
     private val sessionStore: SessionStore,
+    private val authRepository: AuthRepository,
     private val logger: Logger
 ) {
     private val baseUrl: String = apiBaseUrl().trimEnd('/')
 
-    suspend fun getMe(): ApiUserProfile {
-        val response = httpClient.get(url("/auth/me")) {
-            applyAuth()
-        }
-        return response.ensureBody()
+    suspend fun getMe(): ApiUserProfile = request {
+        val result = httpClient.get(url("/auth/me")) { applyAuth() }
+        // Use a temporary variable to allow logging the raw body if needed, 
+        // but since request/ensureBody handles the deserialization, 
+        // we'll just return it and let the request helper do its job.
+        result
     }
 
-    suspend fun updatePreferences(request: ApiUpdatePreferencesRequest): ApiUserProfile {
-        val response = httpClient.patch(url("/auth/me/preferences")) {
-            applyAuth()
-            contentType(ContentType.Application.Json)
-            setBody(request)
-        }
-        return response.ensureBody()
-    }
-
-    suspend fun updateProfile(request: ApiUpdateProfileRequest): ApiUserProfile {
-        val response = httpClient.patch(url("/auth/me/profile")) {
+    suspend fun updatePreferences(request: ApiUpdatePreferencesRequest): ApiUserProfile = request {
+        httpClient.patch(url("/auth/me/preferences")) {
             applyAuth()
             contentType(ContentType.Application.Json)
             setBody(request)
         }
-        return response.ensureBody()
     }
 
-    suspend fun createItem(request: ApiCreateItemRequest, idempotencyKey: String?): ApiItem {
-        val response = httpClient.post(url("/items")) {
+    suspend fun updateProfile(request: ApiUpdateProfileRequest): ApiUserProfile = request {
+        httpClient.patch(url("/auth/me/profile")) {
+            applyAuth()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    suspend fun createItem(request: ApiCreateItemRequest, idempotencyKey: String?): ApiItem = request {
+        httpClient.post(url("/items")) {
             applyAuth()
             contentType(ContentType.Application.Json)
             idempotencyKey?.let { header("Idempotency-Key", it) }
             setBody(request)
         }
-        return response.ensureBody()
     }
 
-    suspend fun getPendingItems(): ApiPendingItemsResponse {
-        val response = httpClient.get(url("/items/pending")) {
+    suspend fun getPendingItems(): ApiPendingItemsResponse = request {
+        httpClient.get(url("/items/pending")) {
             applyAuth()
         }
-        return response.ensureBody()
     }
 
-    suspend fun getItem(itemId: String): ApiItem {
-        val response = httpClient.get(url("/items/$itemId")) {
+    suspend fun getItem(itemId: String): ApiItem = request {
+        httpClient.get(url("/items/$itemId")) {
             applyAuth()
         }
-        return response.ensureBody()
     }
 
-    suspend fun updateItem(itemId: String, request: ApiUpdateItemRequest): ApiUpdateItemResponse {
-        val response = httpClient.patch(url("/items/$itemId")) {
+    suspend fun updateItem(itemId: String, request: ApiUpdateItemRequest): ApiUpdateItemResponse = request {
+        httpClient.patch(url("/items/$itemId")) {
             applyAuth()
             contentType(ContentType.Application.Json)
             setBody(request)
         }
-        return response.ensureBody()
     }
 
-    suspend fun getLibrary(cursor: String?, limit: Int): ApiLibraryResponse {
-        val response = httpClient.get(url("/library")) {
+    suspend fun getLibrary(cursor: String?, limit: Int): ApiLibraryResponse = request {
+        httpClient.get(url("/library")) {
             applyAuth()
             parameter("cursor", cursor)
             parameter("limit", limit)
         }
-        return response.ensureBody()
     }
 
-    suspend fun search(query: String, cursor: String?, limit: Int): ApiSearchResponse {
-        val response = httpClient.get(url("/search")) {
+    suspend fun search(query: String, cursor: String?, limit: Int): ApiSearchResponse = request {
+        httpClient.get(url("/search")) {
             applyAuth()
             parameter("q", query)
             parameter("cursor", cursor)
             parameter("limit", limit)
+        }
+    }
+
+    /**
+     * Helper to execute a request with automatic token refresh retry on 401.
+     */
+    private suspend inline fun <reified T> request(
+        crossinline block: suspend () -> HttpResponse
+    ): T {
+        // Pre-emptive Token Refresh: Check if token is about to expire before sending request
+        val currentToken = sessionStore.getSession()
+        if (TokenUtils.isAboutToExpire(currentToken)) {
+            logger.info("LiteVaultApi", "Token about to expire, pre-emptively refreshing")
+            when (val refreshResult = authRepository.refreshToken()) {
+                is ApiResult.Success -> logger.info("LiteVaultApi", "Pre-emptive refresh successful")
+                is ApiResult.Error -> logger.warn("LiteVaultApi", "Pre-emptive refresh failed: ${refreshResult.message}")
+            }
+        }
+
+        var response = block()
+        if (response.status.value == 401) {
+            logger.info("LiteVaultApi", "Unauthorized (401), attempting token refresh")
+            when (val refreshResult = authRepository.refreshToken()) {
+                is ApiResult.Success -> {
+                    logger.info("LiteVaultApi", "Token refresh successful, retrying request")
+                    response = block() // Retry the request with new token
+                }
+                is ApiResult.Error -> {
+                    logger.warn("LiteVaultApi", "Token refresh failed: ${refreshResult.message}")
+                }
+            }
         }
         return response.ensureBody()
     }
@@ -147,7 +177,7 @@ class LiteVaultApi(
         val statusCode = status.value
         if (statusCode !in 200..299) {
             val responseText = bodyAsText()
-            logger.warn("LiteVaultApi", "Request failed status=$statusCode body=${responseText.take(300)}")
+            logger.warn("LiteVaultApi", "Request failed status=$statusCode")
             throw ApiException(statusCode, responseText)
         }
         return body()

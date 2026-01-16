@@ -36,14 +36,9 @@ class MeViewModel(
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             when (val result = getUserProfileUseCase()) {
                 is ApiResult.Success -> {
-                    AppLog.debug(
+                    AppLog.info(
                         "MeViewModel",
-                        "profile loaded id=${result.data.id} " +
-                            "email=${result.data.email} displayName=${result.data.displayName} " +
-                            "nickname=${result.data.nickname} plan=${result.data.plan} " +
-                            "timezone=${result.data.preferences.timezone} language=${result.data.preferences.defaultLanguage} " +
-                            "aiSuggestions=${result.data.preferences.aiSuggestionsEnabled} " +
-                            "raw=${result.data}"
+                        "Profile loaded successfully"
                     )
                     _state.update { it.copy(isLoading = false, profile = result.data) }
                 }

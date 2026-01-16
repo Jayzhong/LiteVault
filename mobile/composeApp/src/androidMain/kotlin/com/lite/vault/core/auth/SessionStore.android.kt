@@ -21,13 +21,17 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
  */
 actual class SessionStore(private val context: Context) {
     private val SESSION_TOKEN_KEY = stringPreferencesKey("session_token")
+    private val SESSION_ID_KEY = stringPreferencesKey("session_id")
+    private val SESSION_EMAIL_KEY = stringPreferencesKey("session_email")
     private val IS_SIGNED_IN_KEY = booleanPreferencesKey("is_signed_in")
     private val DEVICE_TOKEN_KEY = stringPreferencesKey("clerk_device_token")
     private val DEVICE_ID_KEY = stringPreferencesKey("clerk_device_id")
     
-    actual suspend fun saveSession(token: String) {
+    actual suspend fun saveSession(token: String, sessionId: String, email: String?) {
         context.dataStore.edit { prefs ->
             prefs[SESSION_TOKEN_KEY] = token
+            prefs[SESSION_ID_KEY] = sessionId
+            email?.let { prefs[SESSION_EMAIL_KEY] = it }
             prefs[IS_SIGNED_IN_KEY] = true
         }
     }
@@ -37,10 +41,24 @@ actual class SessionStore(private val context: Context) {
             prefs[SESSION_TOKEN_KEY]
         }.first()
     }
+
+    actual suspend fun getSessionId(): String? {
+        return context.dataStore.data.map { prefs ->
+            prefs[SESSION_ID_KEY]
+        }.first()
+    }
+
+    actual suspend fun getEmail(): String? {
+        return context.dataStore.data.map { prefs ->
+            prefs[SESSION_EMAIL_KEY]
+        }.first()
+    }
     
     actual suspend fun clearSession() {
         context.dataStore.edit { prefs ->
             prefs.remove(SESSION_TOKEN_KEY)
+            prefs.remove(SESSION_ID_KEY)
+            prefs.remove(SESSION_EMAIL_KEY)
             prefs[IS_SIGNED_IN_KEY] = false
         }
     }

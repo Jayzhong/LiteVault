@@ -28,22 +28,42 @@ class AuthRepositoryImpl(
         
         // Persist session on success
         if (result is ApiResult.Success) {
-            sessionStore.saveSession(result.data.token)
+            sessionStore.saveSession(
+                token = result.data.token,
+                sessionId = result.data.sessionId,
+                email = result.data.email
+            )
         }
         
         return result
     }
     
+    override suspend fun refreshToken(): ApiResult<String> {
+        val sessionId = sessionStore.getSessionId()
+        if (sessionId.isNullOrBlank()) {
+            return ApiResult.Error(message = "No active session to refresh")
+        }
+        
+        return when (val result = authDataSource.refreshSessionToken(sessionId)) {
+            is ApiResult.Success -> {
+                sessionStore.saveSession(result.data, sessionId, sessionStore.getEmail())
+                ApiResult.Success(result.data)
+            }
+            is ApiResult.Error -> result
+        }
+    }
+    
     override suspend fun getSession(): ApiResult<Session?> {
         return try {
             val token = sessionStore.getSession()
-            if (token != null && sessionStore.isSignedIn()) {
-                // V1: Return a placeholder session (no user endpoint yet)
+            val sessionId = sessionStore.getSessionId()
+            if (token != null && sessionId != null && sessionStore.isSignedIn()) {
                 ApiResult.Success(
                     Session(
                         token = token,
-                        userId = "current-user",
-                        email = "user@litevault.app",
+                        sessionId = sessionId,
+                        userId = sessionId,
+                        email = sessionStore.getEmail() ?: "user@litevault.app",
                         isNewUser = false
                     )
                 )

@@ -51,7 +51,7 @@ fun appModule() = module {
     single { Navigator() }
 
     // LiteVault API
-    single { LiteVaultApi(get(), get(), get()) }
+    single { LiteVaultApi(get(), get(), get(), get()) }
 
     // Shared Clerk Frontend API implementation
     single<AuthDataSource> { ClerkHttpAuthDataSource(get(), get()) }
@@ -60,7 +60,7 @@ fun appModule() = module {
     single<AuthRepository> { AuthRepositoryImpl(get(), get()) }
     single<ItemRepository> { ItemRepositoryImpl(get()) }
     single<LibraryRepository> { LibraryRepositoryImpl(get()) }
-    single<UserRepository> { UserRepositoryImpl(get()) }
+    single<UserRepository> { UserRepositoryImpl(get(), get()) }
 
     // Use Cases
     factory { SendVerificationCodeUseCase(get()) }

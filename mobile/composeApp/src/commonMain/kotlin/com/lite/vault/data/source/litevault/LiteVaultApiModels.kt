@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 data class ApiUserProfile(
     val id: String,
     val clerkUserId: String? = null,
-    val email: String,
+    val email: String? = null,
     val displayName: String? = null,
     val nickname: String? = null,
     val avatarUrl: String? = null,

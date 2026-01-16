@@ -137,7 +137,7 @@ fun ApiUserProfile.toDomain(): UserProfile {
     val preferences = preferences ?: ApiUserPreferences()
     return UserProfile(
         id = id,
-        email = email,
+        email = email ?: "no-email@litevault.app",
         displayName = displayName,
         nickname = nickname,
         avatarUrl = avatarUrl,

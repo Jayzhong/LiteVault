@@ -26,6 +26,24 @@ data class ClerkFactor(
 )
 
 @Serializable
+data class ClerkTokenResponse(
+    val jwt: String
+)
+
+@Serializable
+data class ClerkClientResponse(
+    val sessions: List<ClerkSession>? = null
+)
+
+@Serializable
+data class ClerkSession(
+    val id: String,
+    val status: String,
+    @SerialName("user_id") val userId: String? = null,
+    @SerialName("last_active_at") val lastActiveAt: Long? = null
+)
+
+@Serializable
 data class ClerkErrorResponse(
     val errors: List<ClerkError> = emptyList()
 )

@@ -12,6 +12,10 @@ internal enum class LogSeverity {
 
 internal object LoggingConfig {
     var policy: LogPolicy = LogPolicy.Release
+        set(value) {
+            field = value
+            Redactor.isEnabled = (value == LogPolicy.Release)
+        }
 }
 
 internal fun LogPolicy.allows(level: LogSeverity): Boolean = when (this) {

@@ -7,6 +7,8 @@ import com.lite.vault.core.network.ApiResult
 import com.lite.vault.data.source.AuthDataSource
 import com.lite.vault.domain.model.Session
 import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.accept
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.bodyAsText
@@ -120,6 +122,13 @@ class ClerkHttpAuthDataSource(
         }
     }
 
+    override suspend fun refreshSessionToken(sessionId: String): ApiResult<String> {
+        return when (val result = getSessionToken(sessionId)) {
+            is ClerkApiResult.Success -> ApiResult.Success(result.body.jwt)
+            is ClerkApiResult.Failure -> result.toApiError()
+        }
+    }
+
     override suspend fun logout(): ApiResult<Unit> {
         return when (val result = signOut()) {
             is ClerkApiResult.Success -> ApiResult.Success(Unit)
@@ -135,14 +144,21 @@ class ClerkHttpAuthDataSource(
                 if (attemptResult.body.status != STATUS_COMPLETE || sessionId.isNullOrBlank()) {
                     ApiResult.Error(message = "Verification incomplete")
                 } else {
-                    ApiResult.Success(
-                        Session(
-                            token = sessionId,
-                            userId = sessionId,
-                            email = email,
-                            isNewUser = false
-                        )
-                    )
+                    // Exchange Session ID for JWT Token
+                    when (val tokenResult = getSessionToken(sessionId)) {
+                        is ClerkApiResult.Success -> {
+                            ApiResult.Success(
+                                Session(
+                                    token = tokenResult.body.jwt,
+                                    sessionId = sessionId,
+                                    userId = sessionId,
+                                    email = email,
+                                    isNewUser = false
+                                )
+                            )
+                        }
+                        is ClerkApiResult.Failure -> tokenResult.toApiError()
+                    }
                 }
             }
             is ClerkApiResult.Failure -> attemptResult.toApiError()
@@ -157,14 +173,21 @@ class ClerkHttpAuthDataSource(
                 if (attemptResult.body.status != STATUS_COMPLETE || sessionId.isNullOrBlank()) {
                     ApiResult.Error(message = "Verification incomplete")
                 } else {
-                    ApiResult.Success(
-                        Session(
-                            token = sessionId,
-                            userId = sessionId,
-                            email = email,
-                            isNewUser = true
-                        )
-                    )
+                    // Exchange Session ID for JWT Token
+                    when (val tokenResult = getSessionToken(sessionId)) {
+                        is ClerkApiResult.Success -> {
+                            ApiResult.Success(
+                                Session(
+                                    token = tokenResult.body.jwt,
+                                    sessionId = sessionId,
+                                    userId = sessionId,
+                                    email = email,
+                                    isNewUser = true
+                                )
+                            )
+                        }
+                        is ClerkApiResult.Failure -> tokenResult.toApiError()
+                    }
                 }
             }
             is ClerkApiResult.Failure -> attemptResult.toApiError()
@@ -216,11 +239,28 @@ class ClerkHttpAuthDataSource(
     }
 
     private suspend fun signOut(): ClerkApiResult<Unit> {
-        val sessionId = sessionStore.getSession()
+        var sessionId = sessionStore.getSessionId()
+        
         if (sessionId.isNullOrBlank()) {
-            AppLog.debug("ClerkHttpAuth", "signOut skipped: missing session id")
-            return ClerkApiResult.Success(Unit)
+            AppLog.debug("ClerkHttpAuth", "Local sessionId missing, checking server for active sessions")
+            when (val clientResult = getClient()) {
+                is ClerkApiResult.Success -> {
+                    sessionId = clientResult.body.sessions
+                        ?.firstOrNull { it.status == "active" }
+                        ?.id
+                    if (sessionId == null) {
+                        AppLog.debug("ClerkHttpAuth", "No active sessions found on server")
+                        return ClerkApiResult.Success(Unit)
+                    }
+                    AppLog.debug("ClerkHttpAuth", "Found active session on server: $sessionId")
+                }
+                is ClerkApiResult.Failure -> {
+                    AppLog.warn("ClerkHttpAuth", "Failed to check server for sessions: ${clientResult.message}")
+                    return ClerkApiResult.Success(Unit) // Best effort
+                }
+            }
         }
+
         return postFormNoParse(
             path = "/v1/client/sessions/$sessionId/remove",
             params = emptyMap()
@@ -249,6 +289,49 @@ class ClerkHttpAuthDataSource(
                 "code" to code
             )
         )
+    }
+
+    private suspend fun getSessionToken(
+        sessionId: String
+    ): ClerkApiResult<ClerkTokenResponse> {
+        return postForm(
+            path = "/v1/client/sessions/$sessionId/tokens",
+            params = emptyMap()
+        )
+    }
+
+    private suspend fun getClient(): ClerkApiResult<ClerkClientResponse> {
+        return getRequest(path = "/v1/client")
+    }
+
+    private suspend inline fun <reified T> getRequest(
+        path: String
+    ): ClerkApiResult<T> {
+        return try {
+            val deviceId = sessionStore.getOrCreateDeviceId()
+            val deviceToken = sessionStore.getDeviceToken()
+            val response = httpClient.get("$baseUrl$path?_is_native=true") {
+                headers.append("clerk-api-version", ClerkConfig.API_VERSION)
+                headers.append("x-mobile", "1")
+                headers.append("x-native-device-id", deviceId)
+                deviceToken?.let { headers.append(HttpHeaders.Authorization, it) }
+                accept(ContentType.Application.Json)
+            }
+            val responseText = response.bodyAsText()
+            if (response.status.value in 200..299) {
+                val parsed = decodeResponse<T>(responseText)
+                if (parsed != null) {
+                    ClerkApiResult.Success(parsed)
+                } else {
+                    ClerkApiResult.Failure(response.status.value, null, "Unexpected Clerk response")
+                }
+            } else {
+                val parsedError = parseError(responseText)
+                ClerkApiResult.Failure(response.status.value, parsedError?.error?.code, parsedError?.error?.message ?: "Request failed")
+            }
+        } catch (e: Exception) {
+            ClerkApiResult.Failure(0, null, e.message ?: "Request failed")
+        }
     }
 
     private suspend inline fun <reified T> postForm(
@@ -421,7 +504,8 @@ class ClerkHttpAuthDataSource(
     }
 
     private fun ClerkApiResult.Failure.toApiError(): ApiResult.Error {
-        return ApiResult.Error(code = status, message = message)
+        val errorMessage = if (errorCode != null) "[$errorCode] $message" else message
+        return ApiResult.Error(code = status, message = errorMessage)
     }
 
     private enum class Flow {
@@ -444,7 +528,8 @@ class ClerkHttpAuthDataSource(
         private const val STATUS_COMPLETE = "complete"
         private val IDENTIFIER_NOT_FOUND_CODES = setOf(
             "form_identifier_not_found",
-            "identifier_not_found"
+            "identifier_not_found",
+            "form_identifier_invalid"
         )
         private val ALREADY_SIGNED_IN_CODES = setOf(
             "already_signed_in",

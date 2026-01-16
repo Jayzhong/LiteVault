@@ -52,7 +52,7 @@ class LoginViewModel(
     }
     
     private fun handleSendCode() {
-        val email = _state.value.email
+        val email = _state.value.email.trim()
         if (email.isBlank()) return
         
         viewModelScope.launch {
@@ -86,7 +86,7 @@ class LoginViewModel(
     }
     
     private fun handleVerifyCode() {
-        val email = _state.value.email
+        val email = _state.value.email.trim()
         val code = _state.value.verificationCode
         
         if (email.isBlank() || code.length != 6) return

@@ -12,5 +12,6 @@ import com.lite.vault.domain.model.Session
 interface AuthDataSource {
     suspend fun sendVerificationCode(email: String): ApiResult<Unit>
     suspend fun verifyCode(email: String, code: String): ApiResult<Session>
+    suspend fun refreshSessionToken(sessionId: String): ApiResult<String>
     suspend fun logout(): ApiResult<Unit>
 }
