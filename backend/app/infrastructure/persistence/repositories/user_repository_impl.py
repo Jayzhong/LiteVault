@@ -80,6 +80,28 @@ class SQLAlchemyUserRepository(UserRepository):
         existing = await self.get_by_clerk_user_id(principal.clerk_user_id)
         if existing:
             # Update email/name from Clerk if changed
+            needs_update = False
+            updated_email = existing.email
+            updated_name = existing.display_name
+
+            if principal.email and existing.email != principal.email:
+                updated_email = principal.email
+                needs_update = True
+            if principal.name and existing.display_name != principal.name:
+                updated_name = principal.name
+                needs_update = True
+
+            if needs_update:
+                result = await self.session.execute(
+                    select(UserModel).where(UserModel.clerk_user_id == principal.clerk_user_id)
+                )
+                model = result.scalar_one()
+                model.email = updated_email
+                model.name = updated_name
+                model.updated_at = datetime.now(timezone.utc)
+                await self.session.flush()
+                return self._to_entity(model)
+
             return existing
 
         # Create new user from Clerk principal
