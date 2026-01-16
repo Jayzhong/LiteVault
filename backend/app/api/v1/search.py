@@ -86,7 +86,7 @@ async def resolve_tags_to_objects(
         if tag:
             result.append(TagInItem(id=tag.id, name=tag.name, color=tag.color))
         else:
-            result.append(TagInItem(id="", name=name, color="#6B7280"))
+            result.append(TagInItem(id="", name=name, color="gray"))
     return result
 
 

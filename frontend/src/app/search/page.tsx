@@ -6,7 +6,7 @@ import { microcopy, getGreeting } from '@/lib/microcopy';
 import { InputBar } from '@/components/shared/InputBar';
 import { SearchEmptyState } from '@/components/domain/search/SearchEmptyState';
 import { ItemCard } from '@/components/shared/ItemCard';
-import { ItemDetailModal } from '@/components/shared/ItemDetailModal';
+import { ItemDetailEditor } from '@/components/domain/editor';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAccountProfile } from '@/lib/hooks/useAccountProfile';
 import { apiClient, isUsingRealApi, SearchResponse, SearchResultItem } from '@/lib/api/client';
@@ -343,7 +343,7 @@ export default function SearchPage() {
             )}
 
             {selectedItem && (
-                <ItemDetailModal
+                <ItemDetailEditor
                     isOpen={!!selectedItem}
                     onClose={() => setSelectedItem(null)}
                     item={selectedItem}

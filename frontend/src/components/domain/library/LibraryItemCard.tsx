@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ItemCard } from '@/components/shared/ItemCard';
-import { ItemDetailModal } from '@/components/shared/ItemDetailModal';
+import { ItemDetailEditor } from '@/components/domain/editor';
 import type { Item } from '@/lib/types';
 
 interface LibraryItemCardProps {
@@ -34,7 +34,7 @@ export function LibraryItemCard({ item, onUpdate }: LibraryItemCardProps) {
                 onClick={() => setIsModalOpen(true)}
             />
 
-            <ItemDetailModal
+            <ItemDetailEditor
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 item={item}
@@ -43,3 +43,4 @@ export function LibraryItemCard({ item, onUpdate }: LibraryItemCardProps) {
         </>
     );
 }
+
